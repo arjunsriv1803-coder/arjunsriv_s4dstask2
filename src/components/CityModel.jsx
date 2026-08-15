@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import { Box3, Vector3 } from 'three';
 import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
 
@@ -44,6 +45,7 @@ export default function CityModel() {
    * the app for free.
    */
   const { scene } = useGLTF(MODEL_URL, false, true);
+  const gl = useThree((state) => state.gl);
 
   /*
    * Normalise the model: centre it horizontally on its own mesh bounds, sit it on
@@ -72,6 +74,23 @@ export default function CityModel() {
   }, [scene]);
 
   useLayoutEffect(() => {
+    /*
+     * Anisotropic filtering. This is the single biggest close-range quality win
+     * available, and it is nearly free.
+     *
+     * Standard mipmapping picks one level of detail for the whole pixel, which is
+     * correct for a surface square-on to the camera but badly wrong for one seen
+     * at a steep angle - a road or a facade running away from the viewer. To
+     * avoid aliasing the GPU picks a blurrier mip, so exactly the surfaces you
+     * see most obliquely turn to mush. Anisotropic filtering takes multiple
+     * samples along the direction of compression instead, keeping them sharp.
+     *
+     * Queried from the hardware rather than hardcoded; the cap is commonly 16 but
+     * the driver is the authority, and requesting more than it supports is
+     * silently clamped anyway.
+     */
+    const maxAnisotropy = gl.capabilities.getMaxAnisotropy();
+
     scene.traverse((object) => {
       if (!object.isMesh) return;
 
@@ -83,8 +102,20 @@ export default function CityModel() {
       // renderer walking the shadow path for meshes that never cast anything.
       object.castShadow = false;
       object.receiveShadow = false;
+
+      // A material may be shared across meshes, so this can be reached more than
+      // once; assigning the same value again is harmless.
+      const texture = object.material?.map;
+      if (texture && texture.anisotropy !== maxAnisotropy) {
+        texture.anisotropy = maxAnisotropy;
+        // Filtering is a sampler parameter, so the texture must be re-uploaded
+        // for the change to take effect.
+        texture.needsUpdate = true;
+      }
     });
-  }, [scene]);
+
+    console.info(`[CityModel] anisotropic filtering set to ${maxAnisotropy}x`);
+  }, [scene, gl]);
 
   // Bounding box logging - the single most useful diagnostic when a model does not
   // appear. If the city is invisible it is nearly always scale or position, and

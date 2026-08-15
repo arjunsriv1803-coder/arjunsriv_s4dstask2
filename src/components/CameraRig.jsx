@@ -325,10 +325,16 @@ export default function CameraRig({ destination }) {
        * the cut-out tile. 0.12 rad (~7 deg) of margin keeps it comfortably above.
        */
       maxPolarAngle={Math.PI / 2 - 0.12}
-      // Stop the user dollying inside a building, or so far out that the city
-      // becomes a dot. The upper bound also keeps the camera comfortably inside
-      // the sky dome and the far plane.
-      minDistance={TARGET_SPAN * 0.05}
+      /*
+       * The lower bound is a blunt instrument standing in for collision
+       * detection, which this does not have. Nothing stops the camera passing
+       * through a wall, and inside a building you see unlit interior backfaces
+       * (the material is doubleSided) - which reads as the renderer being broken
+       * rather than the camera being somewhere it should not be. Holding the
+       * camera further from its target makes that much harder to stumble into.
+       * The upper bound keeps it inside the sky dome and the far plane.
+       */
+      minDistance={TARGET_SPAN * 0.075}
       maxDistance={TARGET_SPAN * 1.6}
     />
   );

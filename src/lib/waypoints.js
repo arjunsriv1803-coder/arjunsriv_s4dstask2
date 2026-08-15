@@ -69,14 +69,24 @@ export const WAYPOINTS = [
   },
   {
     id: 'street',
-    label: 'Street Level',
-    hint: 'Down among the blocks',
-    // Terrain sits at 33-47, so a target at 50 with a shallow approach puts the
-    // camera just above street height. This is the shot that shows the 2048
-    // texture at close range.
-    target: [-120, 52, 30],
-    direction: [1, 0.13, 0.62],
-    distance: 130,
+    label: 'Ground Level',
+    hint: 'Looking up at the towers',
+    /*
+     * Placed by clearance test, not by eye. The first attempt at this shot put
+     * the camera 1.4 units from a wall with 3,703 vertices directly overhead -
+     * literally inside a building, which rendered as flat dark interior faces
+     * because the material is doubleSided.
+     *
+     * This position was chosen by scanning for a cell with a low ceiling (open
+     * ground, max height 53) that has tall structure within a few cells to look
+     * at. Measured clearance here is 14.5 units with 31 vertices overhead.
+     *
+     * Note the negative Y in the direction: the camera sits BELOW the target and
+     * looks upward at the tower, which is the point of a ground-level shot.
+     */
+    target: [-212, 100, 187],
+    direction: [-0.72, -0.42, 0.55],
+    distance: 80,
   },
 ];
 
