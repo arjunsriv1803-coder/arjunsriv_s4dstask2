@@ -57,10 +57,11 @@ export default function App() {
           /*
            * Slight lift over the default 1.0. ACES filmic tone mapping rolls the
            * highlights off hard, which suits a bright sky but leaves street-level
-           * facades sitting low in the curve. A small exposure bump lifts the
-           * midtones without blowing out the sky.
+           * facades sitting low in the curve. A small bump lifts the midtones
+           * without blowing out the sky - 1.12 proved too much and washed the
+           * facades out, so this sits midway back toward neutral.
            */
-          toneMappingExposure: 1.12,
+          toneMappingExposure: 1.06,
           // Nothing in this scene uses the stencil buffer, so allocating one is
           // pure waste of memory and bandwidth on every frame.
           stencil: false,
