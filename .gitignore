@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# Source 3D assets (too large for Git — optimized versions live in public/models)
+# GitHub hard-rejects any single file over 100 MB, and the source model is ~495 MB.
+# A file committed by accident stays in history forever, so these patterns exist
+# BEFORE the first `git add` rather than being added after the fact.
+*_heavy.glb
+/assets-src/
+stage*.glb
+
+# Local agent/editor tooling config — not part of the submission
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
