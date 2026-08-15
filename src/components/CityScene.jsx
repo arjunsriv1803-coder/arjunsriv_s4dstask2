@@ -4,6 +4,7 @@ import { TARGET_SPAN, WATER_LEVEL } from '../lib/city';
 import CameraRig from './CameraRig';
 import GradientSky from './GradientSky';
 import Water from './Water';
+import ReadyProbe from './ReadyProbe';
 
 /*
  * One sun direction, shared by the sky shader and the directional light. If these
@@ -110,6 +111,10 @@ export default function CityScene({ settings }) {
 
       <CityModel />
       <CameraRig />
+
+      {/* Inside Suspense, so its first frame is the first genuinely interactive
+          one. Logs load timings to the console and window.__cityMetrics. */}
+      <ReadyProbe />
     </>
   );
 }

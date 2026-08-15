@@ -3,7 +3,32 @@ import { useGLTF } from '@react-three/drei';
 import { Box3, Vector3 } from 'three';
 import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
 
-const MODEL_URL = '/models/manhattan_optimized.glb';
+/*
+ * Baseline comparison switch, development builds only.
+ *
+ * The submission needs an honest "before" figure, which means the unoptimized
+ * 519 MB source has to actually be loaded at least once and measured rather than
+ * guessed at. Adding ?model=heavy in dev points the loader at it.
+ *
+ * import.meta.env.DEV is statically replaced at build time, so in production this
+ * collapses to the optimized path and the query parameter does nothing - there is
+ * no way to make a deployed visitor download half a gigabyte.
+ *
+ * The heavy file is gitignored (*_heavy.glb) and must never be committed.
+ */
+const OPTIMIZED_URL = '/models/manhattan_optimized.glb';
+const HEAVY_URL = '/models/manhattan_heavy.glb';
+
+const useHeavyBaseline =
+  import.meta.env.DEV &&
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('model') === 'heavy';
+
+const MODEL_URL = useHeavyBaseline ? HEAVY_URL : OPTIMIZED_URL;
+
+if (useHeavyBaseline) {
+  console.warn('[CityModel] baseline mode: loading the UNOPTIMIZED 519 MB source model');
+}
 
 export default function CityModel() {
   /*
