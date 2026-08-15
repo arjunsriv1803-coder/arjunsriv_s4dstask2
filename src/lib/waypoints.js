@@ -72,11 +72,23 @@ export const WAYPOINTS = [
     id: 'harbour',
     label: 'Hudson River',
     hint: 'Skyline from the water',
-    // Out over open water looking back, so the whole skyline reads against the
-    // sky. Also the shot that shows the fog and the ocean doing their job.
-    target: [-100, 70, 0],
-    direction: [1, 0.26, -1],
-    distance: 640,
+    /*
+     * Uses the framing solve rather than a fixed point, with only the view
+     * DIRECTION overridden to a low approach over the water.
+     *
+     * The first version was a hand-placed target and distance, and it framed
+     * mostly open ocean with the city pushed into a corner - a fixed point cannot
+     * know how big the city is or where its centre sits, so it is guesswork. The
+     * solve centres on the measured bounding box and derives distance from the
+     * actual field of view, so the skyline is centred and correctly sized from
+     * any angle and at any window aspect.
+     *
+     * A low Y in the direction is what makes this a view FROM the water rather
+     * than another aerial; fill pulls in slightly so the skyline reads wide.
+     */
+    useFraming: true,
+    direction: [0.96, 0.2, -0.9],
+    fill: 0.92,
   },
   {
     id: 'street',

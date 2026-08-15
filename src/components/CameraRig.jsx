@@ -77,7 +77,7 @@ export default function CameraRig({ destination, touring }) {
    * Returns false if the model is not in the scene graph yet, so the caller can
    * retry on a later frame.
    */
-  const computeFramePose = useCallback(() => {
+  const computeFramePose = useCallback((viewDirection = VIEW_DIRECTION, fill = 1) => {
     if (!controls) return null;
 
     const city = scene.getObjectByName(CITY_GROUP_NAME);
@@ -89,7 +89,10 @@ export default function CameraRig({ destination, touring }) {
     const center = box.getCenter(new Vector3());
     const half = box.getSize(new Vector3()).multiplyScalar(0.5);
 
-    const direction = new Vector3(...VIEW_DIRECTION).normalize();
+    // Direction is a parameter so any waypoint can borrow this solve and simply
+    // look from somewhere else. That is what keeps a low approach over the water
+    // centred on the city instead of framing open ocean.
+    const direction = new Vector3(...viewDirection).normalize();
 
     /*
      * Screen axes for this view. `right` is horizontal and perpendicular to the
@@ -114,7 +117,8 @@ export default function CameraRig({ destination, touring }) {
     const distanceForHeight = extentAlong(up) / (FRAME_FILL_HEIGHT * tanHalfFov);
 
     // Take whichever is further, so both constraints are satisfied.
-    const distance = Math.max(distanceForWidth, distanceForHeight);
+    // `fill` < 1 moves closer, > 1 pulls back, without losing the centring.
+    const distance = Math.max(distanceForWidth, distanceForHeight) * fill;
 
     cityCenter.current.copy(center);
 
@@ -154,7 +158,9 @@ export default function CameraRig({ destination, touring }) {
     (waypoint) => {
       // The overview is re-solved rather than stored, so it stays correct on any
       // window aspect ratio instead of being a position captured at one size.
-      if (waypoint.useFraming) return computeFramePose();
+      if (waypoint.useFraming) {
+        return computeFramePose(waypoint.direction ?? undefined, waypoint.fill ?? 1);
+      }
 
       const target = new Vector3(...waypoint.target);
       const direction = new Vector3(...waypoint.direction).normalize();
