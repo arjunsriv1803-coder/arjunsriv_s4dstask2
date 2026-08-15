@@ -66,6 +66,15 @@ export default function CityScene({ settings, destination }) {
       */}
       {settings.environment && (
         <Environment frames={1} resolution={256}>
+          {/*
+            THE IMPORTANT LINE. Without a background the probe's cube map is BLACK
+            everywhere the Lightformers below do not cover - which is most of it.
+            Every surface then reflects black, and since the building albedo
+            averages only 35% luminance to begin with, the facades were being
+            pushed almost to black. Filling the probe with sky means a surface
+            facing nowhere in particular reflects sky, which is what it should do.
+          */}
+          <color attach="background" args={['#93aec8']} />
           {/* Broad dome overhead - the dominant ambient contribution. */}
           <Lightformer
             form="rect"

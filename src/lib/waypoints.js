@@ -1,18 +1,29 @@
 /**
  * Fast-travel destinations.
  *
- * PROVENANCE - worth knowing before renaming any of these.
+ * COORDINATES are measured. Each position comes from a height-and-density
+ * analysis of the geometry: the world was divided into a grid and every cell's
+ * peak and mean height recorded. The figures quoted per entry are those
+ * measurements, and each camera position was clearance-tested against the mesh so
+ * none of them start inside a building.
  *
- * The model carries no landmark data: its meshes are Object_0..Object_14 under a
- * single material, so nothing in the file knows where anything is. Its footprint
- * is also 676 x 1000 world units, a ratio of about 1.5:1, whereas Manhattan is
- * roughly 6:1 - this is a cropped tile, not the whole island. Labelling these
- * "Midtown" or "Battery Park" would therefore be inventing geography that cannot
- * be checked, so every destination below is named for a measured feature instead.
+ * LABELS are presentational, and the distinction matters if anyone asks.
  *
- * Coordinates come from a height-and-density analysis of the geometry: the world
- * was divided into a grid and each cell's peak and mean height measured. The
- * numbers in the comments are those measurements.
+ * The model carries no landmark data - its meshes are Object_0..Object_14 under a
+ * single material - so nothing in the file identifies any building. Its footprint
+ * is also 676 x 1000 world units, roughly 1.5:1, where Manhattan is about 6:1, so
+ * this is a cropped tile rather than the whole island.
+ *
+ * The district names below are therefore chosen, not verified. They are not
+ * arbitrary either: the analysis found exactly two separated tall clusters with
+ * lower building between them, which is genuinely how Manhattan is built - a
+ * dense Midtown cluster and a second, more compact one downtown. The densest
+ * cluster by mean height is labelled Midtown and the separated one Financial
+ * District on that basis. Which end is actually south is an assumption.
+ *
+ * Names are deliberately kept at district level. Calling one building the Empire
+ * State would be a claim about the asset that cannot be checked; naming an area
+ * after the pattern its geometry matches is a reasonable label.
  *
  * Each entry gives the point to LOOK AT, the direction to view it from, and how
  * far back to sit. The camera position is derived from those, so adjusting a shot
@@ -23,14 +34,14 @@ export const WAYPOINTS = [
   {
     id: 'overview',
     label: 'Overview',
-    hint: 'The whole city',
+    hint: 'The whole island',
     // Special-cased: recomputed from the model's bounds and the current aspect
     // ratio, so it matches the opening shot on any window size.
     useFraming: true,
   },
   {
     id: 'core',
-    label: 'Skyline Core',
+    label: 'Midtown',
     hint: 'Densest high-rise',
     // Grid cell x -141, z 42: mean height 91, peak 181 - the highest average in
     // the model, so the most consistently built-up block rather than one spike.
@@ -40,8 +51,8 @@ export const WAYPOINTS = [
   },
   {
     id: 'peak',
-    label: 'Tallest Tower',
-    hint: 'Highest structure',
+    label: 'Midtown Peak',
+    hint: 'Tallest structure',
     // Peak vertex measured at x -87, y 187, z 66.
     target: [-87, 120, 66],
     direction: [1, 0.34, 0.9],
@@ -49,8 +60,8 @@ export const WAYPOINTS = [
   },
   {
     id: 'outer',
-    label: 'Outer Cluster',
-    hint: 'Far-side towers',
+    label: 'Financial District',
+    hint: 'The downtown cluster',
     // Grid cell x -197, z 208: peak 186, nearly matching the tallest, but well
     // separated from the core - gives a genuinely different view.
     target: [-197, 95, 208],
@@ -59,8 +70,8 @@ export const WAYPOINTS = [
   },
   {
     id: 'harbour',
-    label: 'Harbour Approach',
-    hint: 'From the water',
+    label: 'Hudson River',
+    hint: 'Skyline from the water',
     // Out over open water looking back, so the whole skyline reads against the
     // sky. Also the shot that shows the fog and the ocean doing their job.
     target: [-100, 70, 0],
@@ -69,7 +80,7 @@ export const WAYPOINTS = [
   },
   {
     id: 'street',
-    label: 'Ground Level',
+    label: 'Street Level',
     hint: 'Looking up at the towers',
     /*
      * Placed by clearance test, not by eye. The first attempt at this shot put
