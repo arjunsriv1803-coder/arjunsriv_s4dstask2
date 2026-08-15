@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 
 // Frames averaged for the displayed FPS. ~1 second at 60 Hz: long enough to be
@@ -19,6 +20,26 @@ const WINDOW = 60;
  */
 export default function PerfSampler({ statsRef }) {
   const gl = useThree((state) => state.gl);
+
+  /*
+   * Take manual control of the stats reset.
+   *
+   * By default WebGLRenderer clears info.render on every render() call. With a
+   * post-processing composer there are SEVERAL render calls per frame, so reading
+   * the counters afterwards reports only the last one - which is a single
+   * fullscreen blit. That is why the HUD read "1 draw call, 1 triangle" with
+   * post-processing on while the scene plainly had 17.
+   *
+   * With autoReset off the counters accumulate across every pass. This effect
+   * reads the running total at the start of the next frame and then clears it, so
+   * the figure shown is the true whole-frame cost.
+   */
+  useLayoutEffect(() => {
+    gl.info.autoReset = false;
+    return () => {
+      gl.info.autoReset = true;
+    };
+  }, [gl]);
 
   useFrame((_state, delta) => {
     const stats = statsRef.current;
@@ -42,12 +63,15 @@ export default function PerfSampler({ statsRef }) {
       stats.min = min;
     }
 
-    // info.render is reset by the renderer each frame (autoReset), so these are
-    // per-frame figures, not cumulative totals.
+    // Accumulated across every pass of the PREVIOUS frame, since autoReset is off
+    // and the reset happens below. This is the real whole-frame cost.
     stats.calls = gl.info.render.calls;
     stats.triangles = gl.info.render.triangles;
     stats.geometries = gl.info.memory.geometries;
     stats.textures = gl.info.memory.textures;
+
+    // Clear for the frame about to be rendered.
+    gl.info.reset();
   });
 
   return null;

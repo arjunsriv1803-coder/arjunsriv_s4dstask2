@@ -1,10 +1,13 @@
 /**
  * Three quality tiers.
  *
- * Each tier controls resolution, the environment probe, fog density and whether
- * the post-processing chain runs at all.
+ * Each tier controls resolution, the environment probe and fog density.
  *
- * `antialias` is listed but is NOT switchable at runtime - see below.
+ * Post-processing is deliberately NOT here. It is latched in App rather than
+ * derived from the tier, because toggling it re-mounts the EffectComposer and
+ * reallocates every render target - see the note there.
+ *
+ * `antialias` is listed but is NOT switchable at runtime - see App.
  */
 /*
  * On fog. This was linear (fogNear/fogFar) and is now exponential-squared.
@@ -28,7 +31,6 @@ export const TIERS = {
     environment: true,
     // exp2 density, per world unit. ~11% fogged at 1000 units, ~53% at 2500.
     fogDensity: 0.00034,
-    postProcessing: true,
   },
   medium: {
     label: 'Medium',
@@ -36,9 +38,6 @@ export const TIERS = {
     antialias: true,
     environment: true,
     fogDensity: 0.0004,
-    // Post-processing is the first thing to go. It is a full-screen pass per
-    // effect, so its cost scales with pixels rather than with scene complexity.
-    postProcessing: false,
   },
   low: {
     label: 'Low',
@@ -51,7 +50,6 @@ export const TIERS = {
     // Slightly denser: pulling the visible distance in is a cheap way to reduce
     // what the fragment shader has to resolve on weak hardware.
     fogDensity: 0.00052,
-    postProcessing: false,
   },
 };
 

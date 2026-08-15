@@ -15,7 +15,7 @@ import { stepTier } from '../lib/quality';
  * resolution visibly pulses. The tier system covers the same need and is legible
  * enough to explain.
  */
-export default function QualityManager({ onTierChange }) {
+export default function QualityManager({ onTierChange, onSettle }) {
   /*
    * This component deliberately does NOT touch dpr itself. The Canvas already
    * receives dpr from the active tier, so R3F applies it declaratively; calling
@@ -27,6 +27,21 @@ export default function QualityManager({ onTierChange }) {
       // Averaging over more frames than the default makes the tier stable: a
       // single stutter from a garbage collection pause should not drop quality.
       iterations={8}
+      /*
+       * Hysteresis. Without it this loop is self-oscillating: quality drops, the
+       * frame rate recovers BECAUSE quality dropped, quality is restored, the
+       * frame rate falls again. Measured in practice as a tier flipping between
+       * high and medium with 1% lows collapsing to 7 FPS.
+       *
+       * `flipflops` counts direction reversals; on the third the monitor gives up
+       * adjusting and calls onFallback, which pins the tier for the session. A
+       * stable medium beats a high tier that stutters.
+       */
+      flipflops={3}
+      onFallback={() => {
+        onTierChange('medium');
+        onSettle?.();
+      }}
       onDecline={() => onTierChange((current) => stepTier(current, -1))}
       onIncline={() => onTierChange((current) => stepTier(current, +1))}
     />

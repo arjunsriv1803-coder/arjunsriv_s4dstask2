@@ -14,7 +14,7 @@ const REFRESH_MS = 250;
  * tree invalid. Reading WebGLRenderer.info directly is a dozen lines, has no
  * dependency risk, and produces exactly the figures the metrics table needs.
  */
-export default function PerfHUD({ statsRef, tier }) {
+export default function PerfHUD({ statsRef, tier, postProcessing }) {
   const [stats, setStats] = useState(() => ({ ...statsRef.current }));
 
   useEffect(() => {
@@ -45,6 +45,10 @@ export default function PerfHUD({ statsRef, tier }) {
         <strong>{stats.textures ?? '--'}</strong>
       </div>
       <div className="perf__row perf__row--tier">
+        <span>Post FX</span>
+        <strong>{postProcessing ? 'on' : 'off'}</strong>
+      </div>
+      <div className="perf__row">
         <span>Tier</span>
         <strong>
           {TIERS[tier].label} &middot; dpr {TIERS[tier].dpr}

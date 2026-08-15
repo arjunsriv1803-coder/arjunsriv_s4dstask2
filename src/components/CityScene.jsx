@@ -34,7 +34,7 @@ const ZENITH_COLOUR = '#4f86c6';
 
 const SKY_RADIUS = TARGET_SPAN * 2.2;
 
-export default function CityScene({ settings, destination }) {
+export default function CityScene({ settings, destination, postProcessing }) {
   return (
     <>
       <GradientSky
@@ -155,7 +155,7 @@ export default function CityScene({ settings, destination }) {
       <ReadyProbe />
 
       {/* Last child: the composer wraps everything rendered before it. */}
-      <PostFX enabled={settings.postProcessing} />
+      <PostFX enabled={postProcessing} />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import CityScene from './components/CityScene';
 import LoadingScreen from './components/LoadingScreen';
@@ -22,6 +22,26 @@ export default function App() {
    * device spends its first seconds struggling at full quality.
    */
   const [tier, setTier] = useState(detectInitialTier);
+
+  /*
+   * Post-processing is LATCHED, and only ever switches off.
+   *
+   * Tying it directly to the live tier was a mistake: every tier change mounted
+   * or unmounted the EffectComposer, and each mount allocates a fresh set of
+   * render targets. Measured result was the texture count climbing from 6 to
+   * over 110 while the tier flip-flopped, with 1% lows collapsing to 7 FPS - the
+   * composer churn cost far more than the effects themselves.
+   *
+   * A one-way latch cannot oscillate. It starts on only if the device looked
+   * capable before the first frame, and any drop out of the high tier disables it
+   * permanently for the session. Nothing ever turns it back on.
+   */
+  const [postProcessing, setPostProcessing] = useState(() => detectInitialTier() === 'high');
+
+  useEffect(() => {
+    if (tier !== 'high') setPostProcessing(false);
+  }, [tier]);
+
   const settings = TIERS[tier];
 
   /*
@@ -108,7 +128,10 @@ export default function App() {
          */
         shadows={false}
       >
-        <QualityManager onTierChange={setTier} />
+        <QualityManager
+          onTierChange={setTier}
+          onSettle={() => setPostProcessing(false)}
+        />
         {SHOW_PERF && <PerfSampler statsRef={statsRef} />}
 
         {/* useGLTF suspends while the model downloads and decodes. Without a
@@ -116,7 +139,11 @@ export default function App() {
             The fallback is null because the loading UI is DOM, not 3D - it has to
             be visible precisely when the canvas has nothing to show. */}
         <Suspense fallback={null}>
-          <CityScene settings={settings} destination={destination} />
+          <CityScene
+            settings={settings}
+            destination={destination}
+            postProcessing={postProcessing}
+          />
         </Suspense>
       </Canvas>
 
@@ -129,7 +156,7 @@ export default function App() {
         onSelect={(waypoint) => setDestination({ waypoint, nonce: performance.now() })}
       />
       <ControlsOverlay />
-      {SHOW_PERF && <PerfHUD statsRef={statsRef} tier={tier} />}
+      {SHOW_PERF && <PerfHUD statsRef={statsRef} tier={tier} postProcessing={postProcessing} />}
     </div>
   );
 }
