@@ -11,22 +11,31 @@ import { TARGET_SPAN } from './city';
  *
  * `antialias` is listed but is NOT switchable at runtime - see below.
  */
+/*
+ * On fogNear specifically. At the default framing the camera sits about 900 units
+ * out, so the far side of the city is roughly 1400 away. With fogNear at 700 that
+ * put ~41% haze over the back half of the model - the city read as washed out and
+ * low contrast, and no amount of light tuning fixes atmosphere sitting on top of
+ * the subject. Starting the fog beyond the city keeps the buildings crisp while
+ * still dissolving the true horizon, which is the only job it actually has here.
+ * fogFar must stay under the 2600 far plane.
+ */
 export const TIERS = {
   high: {
     label: 'High',
     dpr: 1.5,
     antialias: true,
     environment: true,
-    fogNear: TARGET_SPAN * 0.7,
-    fogFar: TARGET_SPAN * 2.4,
+    fogNear: TARGET_SPAN * 1.2,
+    fogFar: TARGET_SPAN * 2.5,
   },
   medium: {
     label: 'Medium',
     dpr: 1.0,
     antialias: true,
     environment: true,
-    fogNear: TARGET_SPAN * 0.6,
-    fogFar: TARGET_SPAN * 2.0,
+    fogNear: TARGET_SPAN * 1.0,
+    fogFar: TARGET_SPAN * 2.25,
   },
   low: {
     label: 'Low',
@@ -36,8 +45,8 @@ export const TIERS = {
     // image-based lighting lookups. The scene falls back to plain ambient plus
     // directional, which is flatter but materially cheaper.
     environment: false,
-    fogNear: TARGET_SPAN * 0.5,
-    fogFar: TARGET_SPAN * 1.7,
+    fogNear: TARGET_SPAN * 0.85,
+    fogFar: TARGET_SPAN * 1.95,
   },
 };
 

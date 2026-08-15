@@ -27,6 +27,12 @@ const useHeavyBaseline =
 
 const MODEL_URL = useHeavyBaseline ? HEAVY_URL : OPTIMIZED_URL;
 
+/*
+ * Overrides the asset's roughnessFactor of 1.0. See the traverse below for why
+ * the shipped value is wrong for this scene.
+ */
+const CITY_ROUGHNESS = 0.62;
+
 if (useHeavyBaseline) {
   console.warn('[CityModel] baseline mode: loading the UNOPTIMIZED 519 MB source model');
 }
@@ -112,9 +118,37 @@ export default function CityModel() {
         // for the change to take effect.
         texture.needsUpdate = true;
       }
+
+      /*
+       * The asset ships roughnessFactor = 1 with no metallic-roughness map.
+       *
+       * Fully rough means zero specular response: no sky reflection, no sun
+       * sheen, no highlight anywhere. Every surface renders as flat matte
+       * diffuse, which is why a city of glass and polished stone looked dead
+       * regardless of how the lights were tuned. Since there is no roughness
+       * map to respect, a single sensible value is strictly better than the
+       * exporter's default.
+       *
+       * 0.62 is chosen to sit between concrete and glass. Lower turns the whole
+       * city into a mirror and reintroduces the hard-edged Lightformer
+       * reflections that had to be fixed on the water.
+       */
+      const material = object.material;
+      if (material && material.roughness !== CITY_ROUGHNESS) {
+        material.roughness = CITY_ROUGHNESS;
+        // Left at 0. The city is mostly stone and concrete; any metalness makes
+        // the whole atlas read as painted tin.
+        material.metalness = 0;
+        // Lets the environment probe actually contribute now that the surface
+        // can reflect at all.
+        material.envMapIntensity = 1.15;
+        material.needsUpdate = true;
+      }
     });
 
-    console.info(`[CityModel] anisotropic filtering set to ${maxAnisotropy}x`);
+    console.info(
+      `[CityModel] anisotropy ${maxAnisotropy}x, roughness -> ${CITY_ROUGHNESS} (asset shipped 1.0)`,
+    );
   }, [scene, gl]);
 
   // Bounding box logging - the single most useful diagnostic when a model does not

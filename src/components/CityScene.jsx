@@ -59,9 +59,13 @@ export default function CityScene({ settings, destination }) {
         Note these shapes are what the water reflects, so their hard edges are only
         acceptable because the water material is deliberately rough and barely
         reflective - see Water.jsx.
+
+        Resolution is 256 rather than 128 because the buildings are no longer
+        fully rough and so actually reflect this probe now, which makes its
+        resolution start to show. Still rendered once, so the cost is one-off.
       */}
       {settings.environment && (
-        <Environment frames={1} resolution={128}>
+        <Environment frames={1} resolution={256}>
           {/* Broad dome overhead - the dominant ambient contribution. */}
           <Lightformer
             form="rect"
