@@ -25,13 +25,19 @@ export default function App() {
       dpr={[1, 1.5]}
       /*
        * near/far are deliberately tight around the model's 1000-unit world span.
-       * The depth buffer's precision is distributed logarithmically between them,
-       * so leaving near at 0.1 and far at 100000 spends nearly all of it in the
-       * first few units and causes z-fighting on distant buildings.
-       * AutoFrame overwrites `position` on mount; this value only covers the very
-       * first frame before the model's bounds are known.
+       * Depth buffer precision is distributed non-linearly between them, so
+       * leaving near at 0.1 and far at 100000 spends almost all of it in the first
+       * few units and causes z-fighting on distant buildings.
+       *
+       * far can stay this low only because the sky dome and the ocean both track
+       * the camera (see CityScene) - neither can ever fall outside it. Fog
+       * saturates at 2400, comfortably inside 2600, so nothing is ever seen
+       * reaching the clipping plane.
+       *
+       * CameraRig overwrites `position` on mount once the model's bounds are
+       * known; this value only covers the very first frame.
        */
-      camera={{ position: [900, 560, 900], fov: 55, near: 1, far: 5000 }}
+      camera={{ position: [900, 560, 900], fov: 55, near: 2, far: 2600 }}
       /*
        * Real-time shadow maps across an entire city are ruinously expensive - every
        * shadow-casting light re-renders the scene from its own point of view. The

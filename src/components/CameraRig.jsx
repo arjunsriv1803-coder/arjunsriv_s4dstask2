@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Vector3 } from 'three';
 import useFlyControls from '../hooks/useFlyControls';
-import { TARGET_SPAN } from './CityModel';
+import { TARGET_SPAN, WATER_LEVEL } from './CityModel';
 
 /*
  * Movement speed as a fraction of the city's span, not an absolute number. If the
@@ -20,11 +20,20 @@ const BOOST_MULTIPLIER = 3;
 const FRAME_PADDING = 0.82;
 
 /*
- * Floor for both the camera and the orbit target. The model is a cut-out tile
- * whose underside is flat and hollow, so dropping below the waterline reveals the
- * hole. maxPolarAngle stops orbiting under it; this stops FLYING under it.
+ * Floor for both the camera and the orbit target, set just above the water. The
+ * model is a cut-out tile with a hollow underside, so dropping below the surface
+ * reveals the hole. maxPolarAngle stops orbiting under it; this stops FLYING
+ * under it. The two guards are independent because either alone leaves a way
+ * through.
  */
-const MIN_HEIGHT = TARGET_SPAN * 0.012;
+const MIN_HEIGHT = WATER_LEVEL + TARGET_SPAN * 0.008;
+
+/*
+ * How far the orbit target may stray from the city centre. Without this you can
+ * fly indefinitely into empty ocean and lose the city entirely, with no obvious
+ * way back short of pressing R.
+ */
+const MAX_TARGET_RADIUS = TARGET_SPAN * 0.85;
 
 export default function CameraRig() {
   const camera = useThree((state) => state.camera);
@@ -127,8 +136,27 @@ export default function CameraRig() {
     controls.target.add(move.current);
 
     // Keep both above the waterline so the hollow underside stays hidden.
-    if (controls.target.y < MIN_HEIGHT) controls.target.y = MIN_HEIGHT;
+    if (controls.target.y < MIN_HEIGHT) {
+      camera.position.y += MIN_HEIGHT - controls.target.y;
+      controls.target.y = MIN_HEIGHT;
+    }
     if (camera.position.y < MIN_HEIGHT) camera.position.y = MIN_HEIGHT;
+
+    /*
+     * Rein the target back toward the city if it wanders too far out to sea.
+     * Applying the same correction to the camera keeps their relative offset
+     * intact, so the view slides rather than snapping or spinning.
+     */
+    const radius = Math.hypot(controls.target.x, controls.target.z);
+    if (radius > MAX_TARGET_RADIUS) {
+      const pull = MAX_TARGET_RADIUS / radius;
+      const correctionX = controls.target.x * pull - controls.target.x;
+      const correctionZ = controls.target.z * pull - controls.target.z;
+      controls.target.x += correctionX;
+      controls.target.z += correctionZ;
+      camera.position.x += correctionX;
+      camera.position.z += correctionZ;
+    }
   });
 
   return (
@@ -145,9 +173,10 @@ export default function CameraRig() {
        */
       maxPolarAngle={Math.PI / 2 - 0.12}
       // Stop the user dollying inside a building, or so far out that the city
-      // becomes a dot with the far plane clipping it.
+      // becomes a dot. The upper bound also keeps the camera comfortably inside
+      // the sky dome and the far plane.
       minDistance={TARGET_SPAN * 0.05}
-      maxDistance={TARGET_SPAN * 2.2}
+      maxDistance={TARGET_SPAN * 1.6}
     />
   );
 }

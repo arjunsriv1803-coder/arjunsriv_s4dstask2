@@ -15,6 +15,18 @@ const MODEL_URL = '/models/manhattan_optimized.glb';
  */
 const TARGET_SPAN = 1000;
 
+/*
+ * Height of the water surface, in world units above the model's base.
+ *
+ * Measured, not guessed. Bucketing triangle area by height shows the island's
+ * terrain and street level concentrated between 33 and 47 units - 36% of the
+ * model's entire surface area sits in that band - with only 3.2% below it. That
+ * sparse lower region is the hollow underside and the vertical cut edge of the
+ * tile, which is exactly what the water needs to hide. 38 sits inside the terrain
+ * band, so low ground is submerged and the island reads as surrounded by water.
+ */
+const WATER_LEVEL = TARGET_SPAN * 0.038;
+
 export default function CityModel() {
   /*
    * Argument 2 is `useDraco`, argument 3 is `useMeshopt`.
@@ -99,4 +111,4 @@ export default function CityModel() {
 // waiting for React to mount the component. Costs nothing and shaves the wait.
 useGLTF.preload(MODEL_URL, false, true);
 
-export { TARGET_SPAN };
+export { TARGET_SPAN, WATER_LEVEL };
