@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { Box3, SRGBColorSpace, Vector3 } from 'three';
+import { Box3, DoubleSide, SRGBColorSpace, Vector3 } from 'three';
 import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
 import { detectInitialTier } from '../lib/quality';
 
@@ -177,19 +177,28 @@ export default function CityModel() {
        * reflections that had to be fixed on the water.
        */
       const material = object.material;
-      if (material && material.roughness !== CITY_ROUGHNESS) {
-        /*
-         * The asset's doubleSided: true is left ALONE, deliberately.
-         *
-         * Backface culling was tried here and reverted. It should have been free
-         * performance plus hiding the tile's hollow underside, but this mesh has
-         * inconsistent triangle winding: culling removed roofs outright, so
-         * buildings became open-topped boxes. Seeing the dark inside of a shell
-         * past an edge is a much smaller problem than the city missing its roofs.
-         *
-         * This is the documented risk of culling photogrammetry geometry, and it
-         * is why the line is a comment rather than code.
-         */
+
+      /*
+       * Asserted every time, and NOT bundled into the guard below.
+       *
+       * The guard used to key off roughness, so once roughness was set the whole
+       * block was skipped - which meant a `side` value left over from a previous
+       * run (the GLTF loader caches materials at module scope, so they survive
+       * hot reloads) was never corrected. Coupling unrelated properties to one
+       * condition is how that hid.
+       */
+      if (material && material.side !== DoubleSide) {
+        material.side = DoubleSide;
+        material.needsUpdate = true;
+      }
+
+      /*
+       * Everything below is applied once per material, flagged via userData
+       * rather than by testing one of the values - see the side note above for
+       * why inferring "already done" from a property is a trap.
+       */
+      if (material && !material.userData.cityTuned) {
+        material.userData.cityTuned = true;
         material.roughness = CITY_ROUGHNESS;
         // Left at 0. The city is mostly stone and concrete; any metalness makes
         // the whole atlas read as painted tin.
