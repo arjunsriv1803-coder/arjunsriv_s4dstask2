@@ -3,7 +3,12 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Vector3 } from 'three';
 import useFlyControls from '../hooks/useFlyControls';
-import { TARGET_SPAN, WATER_LEVEL } from './CityModel';
+import {
+  CITY_GROUP_NAME,
+  TARGET_SPAN,
+  WATER_LEVEL,
+  computeMeshBounds,
+} from '../lib/city';
 
 /*
  * Movement speed as a fraction of the city's span, not an absolute number. If the
@@ -14,10 +19,17 @@ const BASE_SPEED = TARGET_SPAN * 0.32; // world units per second
 const BOOST_MULTIPLIER = 3;
 
 /*
- * Framing padding, calibrated against the observed result: at 1.15 the city filled
- * roughly half the viewport width, so 0.82 targets ~70%. Lower means closer.
+ * Fraction of the viewport the city should occupy when framed.
+ *
+ * These are used as real constraints, not fudge factors: the distance is solved
+ * so the model's projected width hits FRAME_FILL_WIDTH, then checked against
+ * FRAME_FILL_HEIGHT so a tall or portrait window never crops the skyline.
  */
-const FRAME_PADDING = 0.82;
+const FRAME_FILL_WIDTH = 0.7;
+const FRAME_FILL_HEIGHT = 0.78;
+
+// Viewing direction. A 3/4 view reads as a city far better than straight-on.
+const VIEW_DIRECTION = [1, 0.62, 1];
 
 /*
  * Floor for both the camera and the orbit target, set just above the water. The
@@ -38,7 +50,12 @@ const MAX_TARGET_RADIUS = TARGET_SPAN * 0.85;
 export default function CameraRig() {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls);
+  const scene = useThree((state) => state.scene);
   const keys = useFlyControls();
+
+  // Where the city actually is, captured when it is first framed. The roaming
+  // limit is measured from here rather than from the origin.
+  const cityCenter = useRef(new Vector3());
 
   // Scratch vectors, allocated once. Creating Vector3s inside useFrame would mean
   // thousands of throwaway objects per second for the garbage collector to clean
@@ -48,37 +65,81 @@ export default function CameraRig() {
   const move = useRef(new Vector3());
 
   /*
-   * Puts the camera back at the opening view. Deliberately computed from the
-   * model's known world span and the camera's actual FOV rather than hardcoded, so
-   * "reset" stays correct if the asset or the field of view changes.
+   * Frames the camera on the city's actual bounding box.
+   *
+   * Everything here is solved from the measured box rather than assumed: the
+   * target is the box's centre (NOT the origin - the model is centred on its mesh
+   * bounds, and aiming at the origin near water level left the city sitting low in
+   * frame), and the distance is solved so the box's PROJECTED extent fills the
+   * requested fraction of the viewport.
+   *
+   * Returns false if the model is not in the scene graph yet, so the caller can
+   * retry on a later frame.
    */
   const frameCity = useCallback(() => {
-    if (!controls) return;
+    if (!controls) return false;
 
-    const radius = TARGET_SPAN * 0.5;
-    const verticalFov = (camera.fov * Math.PI) / 180;
+    const city = scene.getObjectByName(CITY_GROUP_NAME);
+    if (!city) return false;
 
-    const fitVertical = radius / Math.tan(verticalFov / 2);
-    // On a narrow/portrait window the horizontal axis becomes the tighter
-    // constraint, so pull back by the aspect to avoid cropping the city.
-    const fitHorizontal = fitVertical / Math.min(1, camera.aspect);
-    const distance = Math.max(fitVertical, fitHorizontal) * FRAME_PADDING;
+    const box = computeMeshBounds(city);
+    if (!box) return false;
 
-    // A 3/4 view reads as a city far better than straight-on or top-down.
-    const direction = new Vector3(1, 0.62, 1).normalize();
-    camera.position.copy(direction.multiplyScalar(distance));
+    const center = box.getCenter(new Vector3());
+    const half = box.getSize(new Vector3()).multiplyScalar(0.5);
 
-    const target = new Vector3(0, TARGET_SPAN * 0.04, 0);
-    controls.target.copy(target);
-    camera.lookAt(target);
+    const direction = new Vector3(...VIEW_DIRECTION).normalize();
+
+    /*
+     * Screen axes for this view. `right` is horizontal and perpendicular to the
+     * view direction; `up` completes the frame. Projecting the box onto these
+     * gives its true on-screen extent, which is what "fills 70% of the width"
+     * actually means - a bounding SPHERE would badly overestimate a city that is
+     * wide and flat rather than round.
+     */
+    const right = new Vector3(direction.z, 0, -direction.x).normalize();
+    const up = new Vector3().crossVectors(right, direction).normalize();
+
+    // Extent of an axis-aligned box along an arbitrary axis is the dot product of
+    // its half-extents with the absolute components of that axis.
+    const extentAlong = (axis) =>
+      Math.abs(half.x * axis.x) + Math.abs(half.y * axis.y) + Math.abs(half.z * axis.z);
+
+    const tanHalfFov = Math.tan(((camera.fov * Math.PI) / 180) / 2);
+
+    // Distance at which each axis exactly hits its requested fill fraction.
+    const distanceForWidth =
+      extentAlong(right) / (FRAME_FILL_WIDTH * tanHalfFov * camera.aspect);
+    const distanceForHeight = extentAlong(up) / (FRAME_FILL_HEIGHT * tanHalfFov);
+
+    // Take whichever is further, so both constraints are satisfied.
+    const distance = Math.max(distanceForWidth, distanceForHeight);
+
+    cityCenter.current.copy(center);
+    camera.position.copy(center).addScaledVector(direction, distance);
+    controls.target.copy(center);
+    camera.lookAt(center);
     camera.updateProjectionMatrix();
     controls.update();
-  }, [camera, controls]);
 
-  // Frame once, as soon as OrbitControls has registered itself.
-  useEffect(() => {
-    frameCity();
-  }, [frameCity]);
+    console.info(
+      '[CameraRig] framed on bbox centre',
+      center.toArray().map((n) => Math.round(n)),
+      `distance ${Math.round(distance)}`,
+    );
+    return true;
+  }, [camera, controls, scene]);
+
+  /*
+   * Frame on the first frame where both OrbitControls and the model exist. An
+   * effect alone is not reliable here: the model arrives from Suspense, so it may
+   * not be in the scene graph when effects first run.
+   */
+  const hasFramed = useRef(false);
+  useFrame(() => {
+    if (hasFramed.current) return;
+    if (frameCity()) hasFramed.current = true;
+  });
 
   // Reset is a one-shot action rather than a held state, so it is handled here as
   // its own listener instead of being polled from the movement Set every frame.
@@ -147,11 +208,13 @@ export default function CameraRig() {
      * Applying the same correction to the camera keeps their relative offset
      * intact, so the view slides rather than snapping or spinning.
      */
-    const radius = Math.hypot(controls.target.x, controls.target.z);
+    const offsetX = controls.target.x - cityCenter.current.x;
+    const offsetZ = controls.target.z - cityCenter.current.z;
+    const radius = Math.hypot(offsetX, offsetZ);
     if (radius > MAX_TARGET_RADIUS) {
       const pull = MAX_TARGET_RADIUS / radius;
-      const correctionX = controls.target.x * pull - controls.target.x;
-      const correctionZ = controls.target.z * pull - controls.target.z;
+      const correctionX = offsetX * pull - offsetX;
+      const correctionZ = offsetZ * pull - offsetZ;
       controls.target.x += correctionX;
       controls.target.z += correctionZ;
       camera.position.x += correctionX;

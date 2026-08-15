@@ -1,31 +1,9 @@
 import { useLayoutEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { Box3, Vector3 } from 'three';
+import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
 
 const MODEL_URL = '/models/manhattan_optimized.glb';
-
-/*
- * The source model measures roughly 8 x 2 x 12 in its own units. Working at that
- * scale is painful: a sensible camera near-plane (1) would clip straight through
- * the city, and any movement speed would need awkward fractional values.
- *
- * So we rescale once, on load, to a known world span. Every other tuned number in
- * the project - near/far, fog distances, fly speed - is then expressed against
- * this constant and actually means something.
- */
-const TARGET_SPAN = 1000;
-
-/*
- * Height of the water surface, in world units above the model's base.
- *
- * Measured, not guessed. Bucketing triangle area by height shows the island's
- * terrain and street level concentrated between 33 and 47 units - 36% of the
- * model's entire surface area sits in that band - with only 3.2% below it. That
- * sparse lower region is the hollow underside and the vertical cut edge of the
- * tile, which is exactly what the water needs to hide. 38 sits inside the terrain
- * band, so low ground is submerged and the island reads as surrounded by water.
- */
-const WATER_LEVEL = TARGET_SPAN * 0.038;
 
 export default function CityModel() {
   /*
@@ -43,13 +21,15 @@ export default function CityModel() {
   const { scene } = useGLTF(MODEL_URL, false, true);
 
   /*
-   * Normalise the model: centre it horizontally on the origin, sit it on y=0, and
-   * scale it to TARGET_SPAN. Doing this from the measured bounding box rather than
-   * a hardcoded number means the scene still frames correctly if the asset is
-   * ever re-exported at a different scale.
+   * Normalise the model: centre it horizontally on its own mesh bounds, sit it on
+   * y=0, and scale it to TARGET_SPAN. Deriving this from the measured bounding box
+   * rather than hardcoded numbers means the scene still frames correctly if the
+   * asset is ever re-exported at a different scale.
    */
   const fit = useMemo(() => {
-    const box = new Box3().setFromObject(scene);
+    // Mesh-only bounds: see computeMeshBounds. Using full scene bounds would
+    // centre the city on geometry (the LINES primitive) that is not the city.
+    const box = computeMeshBounds(scene) ?? new Box3().setFromObject(scene);
     const size = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
 
@@ -63,8 +43,6 @@ export default function CityModel() {
       // Offsets are applied INSIDE the scaled group, so they are in source units.
       // -center.x/-center.z centres it; -box.min.y drops its base onto the ground.
       offset: [-center.x, -box.min.y, -center.z],
-      // Post-scale dimensions, which is what the camera rig needs to frame it.
-      scaledSize: size.clone().multiplyScalar(scale),
     };
   }, [scene]);
 
@@ -73,7 +51,7 @@ export default function CityModel() {
       if (!object.isMesh) return;
 
       // Assert rather than assume. Frustum culling is what stops the GPU shading
-      // the two-thirds of the city that is behind the camera on every frame.
+      // the parts of the city that are behind the camera on every frame.
       object.frustumCulled = true;
 
       // Shadows are off at the Canvas level, so leaving these true would have the
@@ -87,10 +65,11 @@ export default function CityModel() {
   // appear. If the city is invisible it is nearly always scale or position, and
   // these numbers say which immediately.
   useLayoutEffect(() => {
-    const box = new Box3().setFromObject(scene);
+    const box = computeMeshBounds(scene);
+    if (!box) return;
     const size = box.getSize(new Vector3());
     console.info(
-      '[CityModel] source bbox',
+      '[CityModel] source mesh bbox',
       {
         min: box.min.toArray().map((n) => +n.toFixed(3)),
         max: box.max.toArray().map((n) => +n.toFixed(3)),
@@ -101,14 +80,15 @@ export default function CityModel() {
   }, [scene, fit]);
 
   return (
-    <group scale={fit.scale}>
+    // Named so CameraRig can look the city up in the scene graph and frame the
+    // camera against its real world bounds, rather than assuming it sits at the
+    // origin. Avoids threading refs or a store through the tree for one value.
+    <group name={CITY_GROUP_NAME} scale={fit.scale}>
       <primitive object={scene} position={fit.offset} />
     </group>
   );
 }
 
-// Start fetching the 7.6 MB model as soon as this module is parsed, rather than
-// waiting for React to mount the component. Costs nothing and shaves the wait.
+// Start fetching the model as soon as this module is parsed, rather than waiting
+// for React to mount the component. Costs nothing and shaves the wait.
 useGLTF.preload(MODEL_URL, false, true);
-
-export { TARGET_SPAN, WATER_LEVEL };
