@@ -31,3 +31,158 @@ canvas {
   display: block; /* kills the inline-element baseline gap under the canvas */
   touch-action: none; /* let OrbitControls handle touch instead of the browser scrolling */
 }
+
+.app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------------------------------------------------------- loading -- */
+
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, #16283c 0%, #24405c 55%, #3a5f80 100%);
+  color: #eaf1f8;
+  /* Fades out rather than snapping away; the scene is already rendering behind. */
+  transition: opacity 600ms ease;
+}
+
+.loading--done {
+  opacity: 0;
+  /* Stop the fading overlay from swallowing the first drag. */
+  pointer-events: none;
+}
+
+.loading__panel {
+  width: min(420px, 82vw);
+  text-align: center;
+}
+
+.loading__title {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.loading__subtitle {
+  margin: 0.35rem 0 2rem;
+  font-size: 0.95rem;
+  opacity: 0.7;
+}
+
+.loading__track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.loading__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7fb2e5, #cfe4f7);
+  /* Smooths the jumps between discrete loader progress events, so the bar reads
+     as moving steadily rather than lurching. */
+  transition: width 200ms ease-out;
+}
+
+.loading__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums; /* stops the % digit shifting the layout */
+  opacity: 0.75;
+}
+
+.loading__hint {
+  opacity: 0.85;
+}
+
+/* --------------------------------------------------------------- controls -- */
+
+.controls {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  min-width: 168px;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(16, 30, 44, 0.62);
+  backdrop-filter: blur(8px);
+  color: #eaf1f8;
+  font-size: 0.78rem;
+  user-select: none;
+}
+
+.controls--closed {
+  min-width: 0;
+}
+
+.controls__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.15rem 0.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.controls__chevron {
+  opacity: 0.7;
+}
+
+.controls__list {
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.controls__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.controls__row dt,
+.controls__row dd {
+  margin: 0;
+}
+
+.controls__row dd {
+  opacity: 0.75;
+}
+
+kbd {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 560px) {
+  .controls {
+    right: 0.6rem;
+    bottom: 0.6rem;
+    font-size: 0.72rem;
+  }
+}
