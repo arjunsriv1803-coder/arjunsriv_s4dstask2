@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { Box3, FrontSide, SRGBColorSpace, Vector3 } from 'three';
+import { Box3, SRGBColorSpace, Vector3 } from 'three';
 import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
 import { detectInitialTier } from '../lib/quality';
 
@@ -179,22 +179,17 @@ export default function CityModel() {
       const material = object.material;
       if (material && material.roughness !== CITY_ROUGHNESS) {
         /*
-         * BACKFACE CULLING. The asset ships doubleSided: true.
+         * The asset's doubleSided: true is left ALONE, deliberately.
          *
-         * This is a cut-out tile with a hollow underside and a ragged scan
-         * boundary, so double-sided rendering means you see the INSIDE of the
-         * shell wherever the camera looks past an edge - which renders as unlit
-         * dark surfaces and makes the model look broken. Culling back faces means
-         * those simply are not drawn, and you see the water behind instead.
+         * Backface culling was tried here and reverted. It should have been free
+         * performance plus hiding the tile's hollow underside, but this mesh has
+         * inconsistent triangle winding: culling removed roofs outright, so
+         * buildings became open-topped boxes. Seeing the dark inside of a shell
+         * past an edge is a much smaller problem than the city missing its roofs.
          *
-         * It also stops the GPU shading roughly half the fragments on closed
-         * geometry, which is free performance.
-         *
-         * Risk worth knowing: photogrammetry meshes occasionally have
-         * inconsistent triangle winding, in which case culling punches visible
-         * holes. Revert by deleting this line if that appears.
+         * This is the documented risk of culling photogrammetry geometry, and it
+         * is why the line is a comment rather than code.
          */
-        material.side = FrontSide;
         material.roughness = CITY_ROUGHNESS;
         // Left at 0. The city is mostly stone and concrete; any metalness makes
         // the whole atlas read as painted tin.

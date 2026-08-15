@@ -95,21 +95,23 @@ export const WAYPOINTS = [
     label: 'Street Level',
     hint: 'Looking up at the towers',
     /*
-     * Placed by clearance test, not by eye. The first attempt at this shot put
-     * the camera 1.4 units from a wall with 3,703 vertices directly overhead -
-     * literally inside a building, which rendered as flat dark interior faces
-     * because the material is doubleSided.
+     * Placed by clearance test, and moved INLAND after a second problem.
      *
-     * This position was chosen by scanning for a cell with a low ceiling (open
-     * ground, max height 53) that has tall structure within a few cells to look
-     * at. Measured clearance here is 14.5 units with 31 vertices overhead.
+     * Attempt one put the camera 1.4 units from a wall with 3,703 vertices
+     * overhead - inside a building. Attempt two cleared the geometry but sat at
+     * x -212, only 68 units from the island's western edge, so the shot looked
+     * straight off the tile's cut boundary into empty water.
      *
-     * Note the negative Y in the direction: the camera sits BELOW the target and
-     * looks upward at the tower, which is the point of a ground-level shot.
+     * This position is 239 units from the nearest edge with 22.6 units of
+     * clearance and 75 vertices overhead - enough structure above to read as a
+     * street canyon, far enough inland that the boundary is not in frame.
+     *
+     * The negative Y in the direction is deliberate: the camera sits BELOW the
+     * target and looks upward, which is the point of a ground-level shot.
      */
-    target: [-212, 100, 187],
-    direction: [-0.72, -0.42, 0.55],
-    distance: 80,
+    target: [-127, 105, 312],
+    direction: [0.5, -0.48, -0.73],
+    distance: 60,
   },
 ];
 
