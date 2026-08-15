@@ -96,8 +96,15 @@ export default function CityScene({ settings }) {
         environment probe - without that the scene simply goes darker rather than
         just flatter, which reads as a bug instead of a quality setting.
       */}
-      <ambientLight intensity={settings.environment ? 0.45 : 0.85} />
-      <directionalLight position={SUN_POSITION} intensity={1.6} />
+      <ambientLight intensity={settings.environment ? 0.55 : 0.95} color="#e4edf7" />
+      {/*
+        Warm and deliberately over-unity. The building albedo is a photogrammetry
+        atlas of grey-blue concrete and glass, which at neutral white reads gloomy
+        at street level. Tinting the key toward late-afternoon sun puts warmth into
+        the lit faces while the cool ambient keeps the shadowed sides from going
+        muddy - the warm/cool split is what stops it looking merely brighter.
+      */}
+      <directionalLight position={SUN_POSITION} intensity={2.1} color="#fff0d8" />
 
       <Water level={WATER_LEVEL} />
 
