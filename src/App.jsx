@@ -1,15 +1,58 @@
-import { Suspense } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import CityScene from './components/CityScene';
 import LoadingScreen from './components/LoadingScreen';
 import ControlsOverlay from './components/ControlsOverlay';
+import QualityManager from './components/QualityManager';
+import PerfSampler from './components/PerfSampler';
+import PerfHUD from './components/PerfHUD';
+import { TIERS, detectInitialTier } from './lib/quality';
+
+// Dev-only instrumentation. Vite statically replaces this, so the HUD and its
+// sampler are dropped from the production bundle entirely rather than shipped
+// and hidden.
+const SHOW_PERF = import.meta.env.DEV;
 
 export default function App() {
+  /*
+   * Chosen before the first frame from device signals, then adjusted by
+   * QualityManager from measured frame timings. The initial guess matters: a
+   * monitor can only react to frames already rendered, so without it a weak
+   * device spends its first seconds struggling at full quality.
+   */
+  const [tier, setTier] = useState(detectInitialTier);
+  const settings = TIERS[tier];
+
+  /*
+   * Captured once, on the first render, and never updated. See the `antialias`
+   * note below: feeding a changing value into a WebGL context attribute would be
+   * misleading, because nothing would actually change.
+   */
+  const initialAntialias = useRef(settings.antialias);
+
+  // Per-frame stats live in a ref so the sampler never triggers a React render.
+  const statsRef = useRef({
+    fps: 0,
+    min: Infinity,
+    calls: 0,
+    triangles: 0,
+    geometries: 0,
+    textures: 0,
+    samples: [],
+  });
+
   return (
     <div className="app">
       <Canvas
         gl={{
-          antialias: true,
+          /*
+           * Fixed at context creation and NOT switchable later - antialias is a
+           * WebGL context attribute, so changing it at runtime would mean tearing
+           * down and rebuilding the canvas, losing every uploaded buffer and
+           * texture. It therefore follows the tier detected before first paint,
+           * and a later tier change adjusts resolution instead.
+           */
+          antialias: initialAntialias.current,
           powerPreference: 'high-performance',
           // Nothing in this scene uses the stencil buffer, so allocating one is
           // pure waste of memory and bandwidth on every frame.
@@ -21,10 +64,10 @@ export default function App() {
          *
          * Uncapped, a high-DPI screen reports devicePixelRatio 2 or 3, and the
          * renderer then draws 4x or 9x the pixels for a difference you cannot see
-         * on geometry this dense. Capping at 1.5 keeps edges clean while cutting
-         * the fragment workload dramatically.
+         * on geometry this dense. The tier sets the ceiling; QualityManager
+         * lowers it live if frames start dropping.
          */
-        dpr={[1, 1.5]}
+        dpr={[1, settings.dpr]}
         /*
          * near/far are deliberately tight around the model's 1000-unit world span.
          * Depth buffer precision is distributed non-linearly between them, so
@@ -47,12 +90,15 @@ export default function App() {
          */
         shadows={false}
       >
+        <QualityManager onTierChange={setTier} />
+        {SHOW_PERF && <PerfSampler statsRef={statsRef} />}
+
         {/* useGLTF suspends while the model downloads and decodes. Without a
             Suspense boundary that would propagate up and blank the whole app.
             The fallback is null because the loading UI is DOM, not 3D - it has to
             be visible precisely when the canvas has nothing to show. */}
         <Suspense fallback={null}>
-          <CityScene />
+          <CityScene settings={settings} />
         </Suspense>
       </Canvas>
 
@@ -61,6 +107,7 @@ export default function App() {
           rendered into the WebGL context. */}
       <LoadingScreen />
       <ControlsOverlay />
+      {SHOW_PERF && <PerfHUD statsRef={statsRef} tier={tier} />}
     </div>
   );
 }

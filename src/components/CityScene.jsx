@@ -24,16 +24,15 @@ const SUN_POSITION = [600, 820, 420];
 const HORIZON_COLOUR = '#c9d6e4';
 const ZENITH_COLOUR = '#4f86c6';
 
-const FOG_NEAR = TARGET_SPAN * 0.7;
-/*
- * Fog must saturate before the ocean plane's own edge (3000 units) and before the
- * far clipping plane (2600), or the water would visibly stop somewhere in view.
- */
-const FOG_FAR = TARGET_SPAN * 2.4;
-
 const SKY_RADIUS = TARGET_SPAN * 2.2;
 
-export default function CityScene() {
+/*
+ * Fog distances arrive from the active quality tier. They must always saturate
+ * before the ocean plane's own edge (3000 units) and before the far clipping
+ * plane (2600), or the water would visibly stop somewhere in view - which is why
+ * even the low tier's fog reaches 1700 rather than the PRD's suggested 1200.
+ */
+export default function CityScene({ settings }) {
   return (
     <>
       <GradientSky
@@ -43,7 +42,7 @@ export default function CityScene() {
         sunPosition={SUN_POSITION}
       />
 
-      <fog attach="fog" args={[HORIZON_COLOUR, FOG_NEAR, FOG_FAR]} />
+      <fog attach="fog" args={[HORIZON_COLOUR, settings.fogNear, settings.fogFar]} />
 
       {/*
         Image-based lighting built from shapes rather than an HDRI file.
@@ -60,31 +59,44 @@ export default function CityScene() {
         acceptable because the water material is deliberately rough and barely
         reflective - see Water.jsx.
       */}
-      <Environment frames={1} resolution={128}>
-        {/* Broad dome overhead - the dominant ambient contribution. */}
-        <Lightformer
-          form="rect"
-          intensity={0.9}
-          color="#cfe0f2"
-          scale={[12, 12, 1]}
-          position={[0, 6, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        />
-        {/* The sun, for a soft specular glitter on the water. */}
-        <Lightformer form="circle" intensity={3} color="#fff4e2" scale={2.4} position={[5, 7, 4]} />
-        {/* Cooler horizon bounce so shadowed faces are not dead flat. */}
-        <Lightformer
-          form="rect"
-          intensity={0.45}
-          color="#b9c9dc"
-          scale={[12, 4, 1]}
-          position={[0, 1, -9]}
-        />
-      </Environment>
+      {settings.environment && (
+        <Environment frames={1} resolution={128}>
+          {/* Broad dome overhead - the dominant ambient contribution. */}
+          <Lightformer
+            form="rect"
+            intensity={0.9}
+            color="#cfe0f2"
+            scale={[12, 12, 1]}
+            position={[0, 6, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          />
+          {/* The sun, for a soft specular glitter on the water. */}
+          <Lightformer
+            form="circle"
+            intensity={3}
+            color="#fff4e2"
+            scale={2.4}
+            position={[5, 7, 4]}
+          />
+          {/* Cooler horizon bounce so shadowed faces are not dead flat. */}
+          <Lightformer
+            form="rect"
+            intensity={0.45}
+            color="#b9c9dc"
+            scale={[12, 4, 1]}
+            position={[0, 1, -9]}
+          />
+        </Environment>
+      )}
 
-      {/* Ambient keeps unlit faces readable; directional gives the massing its
-          consistent sun direction, which is what makes the buildings legible. */}
-      <ambientLight intensity={0.45} />
+      {/*
+        Ambient keeps unlit faces readable; directional gives the massing its
+        consistent sun direction, which is what makes the buildings legible.
+        Ambient is lifted on the low tier to compensate for the missing
+        environment probe - without that the scene simply goes darker rather than
+        just flatter, which reads as a bug instead of a quality setting.
+      */}
+      <ambientLight intensity={settings.environment ? 0.45 : 0.85} />
       <directionalLight position={SUN_POSITION} intensity={1.6} />
 
       <Water level={WATER_LEVEL} />
