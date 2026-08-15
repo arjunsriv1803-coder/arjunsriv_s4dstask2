@@ -205,6 +205,36 @@ kbd {
   opacity: 0.62;
 }
 
+.waypoints__tour {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin-bottom: 0.45rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(127, 178, 229, 0.4);
+  border-radius: 6px;
+  background: rgba(127, 178, 229, 0.14);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.waypoints__tour:hover,
+.waypoints__tour:focus-visible {
+  background: rgba(127, 178, 229, 0.24);
+}
+
+.waypoints__tour.is-running {
+  border-color: rgba(255, 176, 120, 0.62);
+  background: rgba(255, 176, 120, 0.2);
+}
+
 .waypoints__list {
   margin: 0;
   padding: 0;

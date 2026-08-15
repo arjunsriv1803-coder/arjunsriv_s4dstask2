@@ -48,7 +48,7 @@ const MIN_HEIGHT = WATER_LEVEL + TARGET_SPAN * 0.008;
  */
 const MAX_TARGET_RADIUS = TARGET_SPAN * 0.85;
 
-export default function CameraRig({ destination }) {
+export default function CameraRig({ destination, touring }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls);
   const scene = useThree((state) => state.scene);
@@ -167,7 +167,7 @@ export default function CameraRig({ destination }) {
   );
 
   const startFlight = useCallback(
-    (waypoint) => {
+    (waypoint, durationMs = FLIGHT_MS) => {
       const to = poseForWaypoint(waypoint);
       if (!to || !controls) return;
 
@@ -177,6 +177,9 @@ export default function CameraRig({ destination }) {
         toPosition: to.position,
         toTarget: to.target,
         startedAt: performance.now(),
+        // Tour legs travel slower than a manual jump: there, the travel is the
+        // content rather than a means of getting somewhere.
+        durationMs,
       };
     },
     [camera, controls, poseForWaypoint],
@@ -201,7 +204,7 @@ export default function CameraRig({ destination }) {
   // unchanged and would not fire the effect.
   useEffect(() => {
     if (!destination || !controls) return;
-    startFlight(destination.waypoint);
+    startFlight(destination.waypoint, destination.flightMs ?? FLIGHT_MS);
   }, [destination, controls, startFlight]);
 
   useEffect(() => {
@@ -228,7 +231,7 @@ export default function CameraRig({ destination }) {
     if (!active || !controls) return;
 
     const elapsed = performance.now() - active.startedAt;
-    const t = Math.min(1, elapsed / FLIGHT_MS);
+    const t = Math.min(1, elapsed / active.durationMs);
     const eased = easeInOutCubic(t);
 
     // Interpolating position and target together is what keeps the move legible:
@@ -319,6 +322,14 @@ export default function CameraRig({ destination }) {
       // expensive than it is - motion eases out instead of stopping dead.
       enableDamping
       dampingFactor={0.05}
+      /*
+       * A slow drift while the tour runs, so the held shots are alive rather than
+       * frozen stills. During a flight the tween overwrites the camera position
+       * every frame anyway, so this only actually takes effect once the camera has
+       * arrived - which is exactly when it is wanted.
+       */
+      autoRotate={touring}
+      autoRotateSpeed={0.35}
       /*
        * Just under a right angle. At exactly PI/2 the camera sits level with the
        * target and can slip beneath the island, exposing the hollow underside of

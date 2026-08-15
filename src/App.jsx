@@ -8,6 +8,8 @@ import PerfSampler from './components/PerfSampler';
 import PerfHUD from './components/PerfHUD';
 import WaypointNav from './components/WaypointNav';
 import { TIERS, detectInitialTier } from './lib/quality';
+import { WAYPOINTS } from './lib/waypoints';
+import { TOUR, TOUR_FLIGHT_MS } from './lib/tour';
 
 // Dev-only instrumentation. Vite statically replaces this, so the HUD and its
 // sampler are dropped from the production bundle entirely rather than shipped
@@ -59,6 +61,64 @@ export default function App() {
    * effect in CameraRig would not re-run without a value that always differs.
    */
   const [destination, setDestination] = useState(null);
+
+  /*
+   * Index into TOUR, or null when the tour is not running.
+   *
+   * The tour drives the SAME destination state a manual click does, so there is
+   * one code path into the camera rather than two competing ones. A tour leg is
+   * just a destination that happened to be chosen by a timer.
+   */
+  const [tourStep, setTourStep] = useState(null);
+  const touring = tourStep !== null;
+
+  // Fly to the current leg, then schedule the next.
+  useEffect(() => {
+    if (tourStep === null) return undefined;
+
+    const leg = TOUR[tourStep % TOUR.length];
+    const waypoint = WAYPOINTS.find((entry) => entry.id === leg.id);
+    if (!waypoint) return undefined;
+
+    setDestination({ waypoint, nonce: performance.now(), flightMs: TOUR_FLIGHT_MS });
+
+    // Advance only after the flight has finished AND the dwell has elapsed, so
+    // each shot is actually held rather than cut away from mid-move.
+    const timer = setTimeout(
+      () => setTourStep((step) => (step === null ? null : step + 1)),
+      TOUR_FLIGHT_MS + leg.dwellMs,
+    );
+    return () => clearTimeout(timer);
+  }, [tourStep]);
+
+  /*
+   * Any deliberate interaction ends the tour. A camera that keeps moving after
+   * you have grabbed it is infuriating, and CameraRig already cancels the flight
+   * on these same gestures - without this the tour would simply fly away again on
+   * its next tick.
+   *
+   * Clicks on the overlay panels are excluded, or pressing the tour's own stop
+   * button would register as "user took control" first and the two would race.
+   */
+  useEffect(() => {
+    if (!touring) return undefined;
+
+    const stop = (event) => {
+      if (event.target instanceof Element && event.target.closest('.waypoints, .controls')) {
+        return;
+      }
+      setTourStep(null);
+    };
+
+    window.addEventListener('pointerdown', stop);
+    window.addEventListener('keydown', stop);
+    window.addEventListener('wheel', stop, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', stop);
+      window.removeEventListener('keydown', stop);
+      window.removeEventListener('wheel', stop);
+    };
+  }, [touring]);
 
   // Per-frame stats live in a ref so the sampler never triggers a React render.
   const statsRef = useRef({
@@ -143,6 +203,7 @@ export default function App() {
             settings={settings}
             destination={destination}
             postProcessing={postProcessing}
+            touring={touring}
           />
         </Suspense>
       </Canvas>
@@ -153,7 +214,13 @@ export default function App() {
       <LoadingScreen />
       <WaypointNav
         activeId={destination?.waypoint.id ?? null}
-        onSelect={(waypoint) => setDestination({ waypoint, nonce: performance.now() })}
+        touring={touring}
+        onToggleTour={() => setTourStep((step) => (step === null ? 0 : null))}
+        onSelect={(waypoint) => {
+          // A manual pick takes over from the tour rather than fighting it.
+          setTourStep(null);
+          setDestination({ waypoint, nonce: performance.now() });
+        }}
       />
       <ControlsOverlay />
       {SHOW_PERF && <PerfHUD statsRef={statsRef} tier={tier} postProcessing={postProcessing} />}

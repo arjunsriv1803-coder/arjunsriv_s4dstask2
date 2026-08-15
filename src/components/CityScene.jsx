@@ -34,7 +34,7 @@ const ZENITH_COLOUR = '#4f86c6';
 
 const SKY_RADIUS = TARGET_SPAN * 2.2;
 
-export default function CityScene({ settings, destination, postProcessing }) {
+export default function CityScene({ settings, destination, postProcessing, touring }) {
   return (
     <>
       <GradientSky
@@ -148,7 +148,7 @@ export default function CityScene({ settings, destination, postProcessing }) {
       <Water level={WATER_LEVEL} />
 
       <CityModel />
-      <CameraRig destination={destination} />
+      <CameraRig destination={destination} touring={touring} />
 
       {/* Inside Suspense, so its first frame is the first genuinely interactive
           one. Logs load timings to the console and window.__cityMetrics. */}
