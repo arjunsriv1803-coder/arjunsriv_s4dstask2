@@ -5,13 +5,20 @@ import CameraRig from './CameraRig';
 import GradientSky from './GradientSky';
 import Water from './Water';
 import ReadyProbe from './ReadyProbe';
+import PostFX from './PostFX';
 
 /*
- * One sun direction, shared by the sky shader and the directional light. If these
- * disagree, the buildings are lit from one side while the bright spot in the sky
- * sits somewhere else - the scene reads as wrong without it being obvious why.
+ * Sun direction, shared by the sky shader and the key light. If these disagree,
+ * the buildings are lit from one side while the bright spot in the sky sits
+ * somewhere else, and the scene reads as wrong without it being obvious why.
+ *
+ * Lowered from [600, 820, 420]. A high sun lights every roof evenly and leaves
+ * facades flat, which is the worst case for a city: the vertical surfaces are
+ * what you actually look at. Dropping the elevation rakes light across the
+ * facades and pushes the streets between towers into shadow, which is where the
+ * sense of depth in a cityscape comes from.
  */
-const SUN_POSITION = [600, 820, 420];
+const SUN_POSITION = [720, 430, 380];
 
 /*
  * The single source of truth for "what colour is the distance".
@@ -27,12 +34,6 @@ const ZENITH_COLOUR = '#4f86c6';
 
 const SKY_RADIUS = TARGET_SPAN * 2.2;
 
-/*
- * Fog distances arrive from the active quality tier. They must always saturate
- * before the ocean plane's own edge (3000 units) and before the far clipping
- * plane (2600), or the water would visibly stop somewhere in view - which is why
- * even the low tier's fog reaches 1700 rather than the PRD's suggested 1200.
- */
 export default function CityScene({ settings, destination }) {
   return (
     <>
@@ -43,7 +44,20 @@ export default function CityScene({ settings, destination }) {
         sunPosition={SUN_POSITION}
       />
 
-      <fog attach="fog" args={[HORIZON_COLOUR, settings.fogNear, settings.fogFar]} />
+      {/*
+        Exponential-squared fog rather than linear.
+
+        Linear fog ramps evenly from fogNear to fogFar, so tuning it to veil the
+        horizon necessarily put haze on mid-distance geometry too - everything
+        ended up the same flat blue at every depth. exp2 stays near-transparent
+        across the whole city and then thickens sharply, so atmosphere lands on the
+        horizon instead of in the street.
+
+        Density is per world unit and tiny by nature: at 0.00034 a surface 1000
+        units away is ~11% fogged, one 2500 away is ~53%. Those are the numbers
+        that matter, not the constant itself.
+      */}
+      <fogExp2 attach="fog" args={[HORIZON_COLOUR, settings.fogDensity]} />
 
       {/*
         Image-based lighting built from shapes rather than an HDRI file.
@@ -104,23 +118,32 @@ export default function CityScene({ settings, destination }) {
       )}
 
       {/*
-        Ambient keeps unlit faces readable; directional gives the massing its
-        consistent sun direction, which is what makes the buildings legible.
-        Ambient is lifted on the low tier to compensate for the missing
-        environment probe - without that the scene simply goes darker rather than
-        just flatter, which reads as a bug instead of a quality setting.
+        LIGHTING IS DELIBERATELY KEY-DOMINANT.
+
+        This asset is photogrammetry: shading, occlusion and contact shadow are
+        already painted into the albedo. Piling on ambient and environment light
+        re-lights surfaces that are already lit, which flattens the very detail the
+        texture carries - that is what made earlier attempts read as washed out no
+        matter which direction the values moved.
+
+        So ambient drops hard and the key does the work. Ambient here is a floor to
+        stop shadowed faces crushing to black, not a light source.
       */}
-      <ambientLight intensity={settings.environment ? 0.5 : 0.9} color="#f2f6fb" />
+      <ambientLight intensity={settings.environment ? 0.18 : 0.34} color="#c8d8ea" />
+
       {/*
-        Warm key, cool ambient. The building albedo is a photogrammetry atlas of
-        grey-blue concrete and glass, which under a neutral white key reads gloomy
-        at street level - but pushed too far it bleaches, because the atlas has
-        little colour of its own to resist being washed out.
-        These values sit midway between the original (1.6, white) and the version
-        that overshot (2.1, #fff0d8). The warm/cool split is what sells sunlight;
-        the restraint is what keeps the facades from going pale.
+        Cool sky above, warm ground bounce below. A hemisphere light gives that
+        split for one extra shading term and no draw call, and it is what stops
+        shadowed faces reading as flat grey.
       */}
-      <directionalLight position={SUN_POSITION} intensity={1.85} color="#fff8ec" />
+      <hemisphereLight args={['#bcd4ee', '#6b6558', 0.42]} />
+
+      {/*
+        The key. Warm, strong, and low - see SUN_POSITION. Raked light across the
+        facades plus the baked AO is what produces relief; a high weak key with
+        heavy ambient produced neither.
+      */}
+      <directionalLight position={SUN_POSITION} intensity={2.6} color="#ffeacd" />
 
       <Water level={WATER_LEVEL} />
 
@@ -130,6 +153,9 @@ export default function CityScene({ settings, destination }) {
       {/* Inside Suspense, so its first frame is the first genuinely interactive
           one. Logs load timings to the console and window.__cityMetrics. */}
       <ReadyProbe />
+
+      {/* Last child: the composer wraps everything rendered before it. */}
+      <PostFX enabled={settings.postProcessing} />
     </>
   );
 }

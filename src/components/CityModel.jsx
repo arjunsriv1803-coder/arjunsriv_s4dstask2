@@ -1,8 +1,26 @@
 import { useLayoutEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { Box3, Vector3 } from 'three';
+import { Box3, SRGBColorSpace, Vector3 } from 'three';
 import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
+import { detectInitialTier } from '../lib/quality';
+
+/*
+ * Two builds of the same geometry, differing only in atlas resolution.
+ *
+ * The 4K build is 11.05 MB with an 89.48 MB GPU footprint; the 2K build is
+ * 8.42 MB and 22.37 MB. Texel density doubles at 4K, which is the whole point -
+ * at 2048 the atlas is magnified even at overview distance.
+ *
+ * Which one loads is decided ONCE, from the tier detected before the first frame.
+ * It deliberately does not follow later tier changes: swapping the model at
+ * runtime would mean re-downloading and re-uploading everything mid-session,
+ * which costs far more than the quality difference is worth. Later tier changes
+ * move resolution and post-processing instead.
+ */
+const OPTIMIZED_URL = '/models/manhattan_optimized.glb'; // 2048 atlas
+const HIGH_DETAIL_URL = '/models/manhattan_4k.glb'; // 4096 atlas
+const HEAVY_URL = '/models/manhattan_heavy.glb';
 
 /*
  * Baseline comparison switch, development builds only.
@@ -12,20 +30,23 @@ import { CITY_GROUP_NAME, TARGET_SPAN, computeMeshBounds } from '../lib/city';
  * guessed at. Adding ?model=heavy in dev points the loader at it.
  *
  * import.meta.env.DEV is statically replaced at build time, so in production this
- * collapses to the optimized path and the query parameter does nothing - there is
- * no way to make a deployed visitor download half a gigabyte.
+ * collapses away entirely and the query parameter does nothing - there is no way
+ * to make a deployed visitor download half a gigabyte.
  *
  * The heavy file is gitignored (*_heavy.glb) and must never be committed.
  */
-const OPTIMIZED_URL = '/models/manhattan_optimized.glb';
-const HEAVY_URL = '/models/manhattan_heavy.glb';
-
 const useHeavyBaseline =
   import.meta.env.DEV &&
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('model') === 'heavy';
 
-const MODEL_URL = useHeavyBaseline ? HEAVY_URL : OPTIMIZED_URL;
+// Low-tier devices get the 2K atlas: 22.37 MB of texture memory instead of
+// 89.48 MB is the difference between running and being killed on a weak GPU.
+const MODEL_URL = useHeavyBaseline
+  ? HEAVY_URL
+  : detectInitialTier() === 'low'
+    ? OPTIMIZED_URL
+    : HIGH_DETAIL_URL;
 
 /*
  * Overrides the asset's roughnessFactor of 1.0. See the traverse below for why
@@ -96,6 +117,7 @@ export default function CityModel() {
      * silently clamped anyway.
      */
     const maxAnisotropy = gl.capabilities.getMaxAnisotropy();
+    let colourSpaceSeen = 'none';
 
     scene.traverse((object) => {
       if (!object.isMesh) return;
@@ -112,11 +134,32 @@ export default function CityModel() {
       // A material may be shared across meshes, so this can be reached more than
       // once; assigning the same value again is harmless.
       const texture = object.material?.map;
-      if (texture && texture.anisotropy !== maxAnisotropy) {
-        texture.anisotropy = maxAnisotropy;
-        // Filtering is a sampler parameter, so the texture must be re-uploaded
-        // for the change to take effect.
-        texture.needsUpdate = true;
+      if (texture) {
+        if (texture.anisotropy !== maxAnisotropy) {
+          texture.anisotropy = maxAnisotropy;
+          // Filtering is a sampler parameter, so the texture must be re-uploaded
+          // for the change to take effect.
+          texture.needsUpdate = true;
+        }
+
+        /*
+         * Colour textures must be tagged sRGB. If a colour map is treated as
+         * linear, the renderer skips the sRGB-to-linear conversion on read and
+         * every value comes out too bright and low-contrast - washed out, exactly
+         * the symptom being chased here.
+         *
+         * GLTFLoader normally sets this correctly for baseColorTexture, so this
+         * is an assertion rather than an expected fix. It is logged either way so
+         * the assumption is visible rather than trusted.
+         */
+        if (texture.colorSpace !== SRGBColorSpace) {
+          console.warn(
+            `[CityModel] baseColor map was "${texture.colorSpace}", forcing sRGB`,
+          );
+          texture.colorSpace = SRGBColorSpace;
+          texture.needsUpdate = true;
+        }
+        colourSpaceSeen = texture.colorSpace;
       }
 
       /*
@@ -147,7 +190,8 @@ export default function CityModel() {
     });
 
     console.info(
-      `[CityModel] anisotropy ${maxAnisotropy}x, roughness -> ${CITY_ROUGHNESS} (asset shipped 1.0)`,
+      `[CityModel] ${MODEL_URL.split('/').pop()} | anisotropy ${maxAnisotropy}x | ` +
+        `roughness ${CITY_ROUGHNESS} (asset shipped 1.0) | colorSpace ${colourSpaceSeen}`,
     );
   }, [scene, gl]);
 

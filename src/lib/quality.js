@@ -1,24 +1,24 @@
-import { TARGET_SPAN } from './city';
-
 /**
  * Three quality tiers.
  *
- * Fog distances are fractions of TARGET_SPAN rather than the PRD's absolute
- * numbers, which assumed a differently scaled world. Expressed as absolutes here
- * they would be wrong: the low tier's suggested 1200 is shorter than the distance
- * from the default camera to the far side of the city (~1400), so it would fog
- * out the very thing the user came to look at.
+ * Each tier controls resolution, the environment probe, fog density and whether
+ * the post-processing chain runs at all.
  *
  * `antialias` is listed but is NOT switchable at runtime - see below.
  */
 /*
- * On fogNear specifically. At the default framing the camera sits about 900 units
- * out, so the far side of the city is roughly 1400 away. With fogNear at 700 that
- * put ~41% haze over the back half of the model - the city read as washed out and
- * low contrast, and no amount of light tuning fixes atmosphere sitting on top of
- * the subject. Starting the fog beyond the city keeps the buildings crisp while
- * still dissolving the true horizon, which is the only job it actually has here.
- * fogFar must stay under the 2600 far plane.
+ * On fog. This was linear (fogNear/fogFar) and is now exponential-squared.
+ *
+ * Linear fog ramps evenly between two distances, so any setting that veiled the
+ * horizon also put haze on mid-distance geometry - at the default framing that
+ * meant ~41% haze over the back half of the city, and everything read as the same
+ * flat blue at every depth. No lighting change fixes atmosphere sitting on top of
+ * the subject.
+ *
+ * exp2 stays near-transparent across the city and then thickens sharply, which
+ * puts the atmosphere on the horizon where it belongs. Density is per world unit,
+ * so the meaningful figures are the resulting percentages quoted per tier rather
+ * than the constants themselves.
  */
 export const TIERS = {
   high: {
@@ -26,16 +26,19 @@ export const TIERS = {
     dpr: 1.5,
     antialias: true,
     environment: true,
-    fogNear: TARGET_SPAN * 1.2,
-    fogFar: TARGET_SPAN * 2.5,
+    // exp2 density, per world unit. ~11% fogged at 1000 units, ~53% at 2500.
+    fogDensity: 0.00034,
+    postProcessing: true,
   },
   medium: {
     label: 'Medium',
     dpr: 1.0,
     antialias: true,
     environment: true,
-    fogNear: TARGET_SPAN * 1.0,
-    fogFar: TARGET_SPAN * 2.25,
+    fogDensity: 0.0004,
+    // Post-processing is the first thing to go. It is a full-screen pass per
+    // effect, so its cost scales with pixels rather than with scene complexity.
+    postProcessing: false,
   },
   low: {
     label: 'Low',
@@ -45,8 +48,10 @@ export const TIERS = {
     // image-based lighting lookups. The scene falls back to plain ambient plus
     // directional, which is flatter but materially cheaper.
     environment: false,
-    fogNear: TARGET_SPAN * 0.85,
-    fogFar: TARGET_SPAN * 1.95,
+    // Slightly denser: pulling the visible distance in is a cheap way to reduce
+    // what the fragment shader has to resolve on weak hardware.
+    fogDensity: 0.00052,
+    postProcessing: false,
   },
 };
 

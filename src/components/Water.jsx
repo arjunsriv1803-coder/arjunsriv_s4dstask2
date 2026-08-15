@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { DataTexture, RGBAFormat, RepeatWrapping, Vector3 } from 'three';
 import { TARGET_SPAN } from '../lib/city';
 
@@ -82,8 +82,24 @@ function createWaveNormalMap(size) {
  * sea at this scale should look like.
  */
 export default function Water({ level }) {
-  const normalMap = useMemo(() => createWaveNormalMap(TEXTURE_SIZE), []);
+  const gl = useThree((state) => state.gl);
   const groupRef = useRef(null);
+
+  const normalMap = useMemo(() => {
+    const texture = createWaveNormalMap(TEXTURE_SIZE);
+    /*
+     * The ocean is the most oblique surface in the entire scene - it stretches to
+     * the horizon, so its texture is compressed almost to nothing in screen space
+     * at distance. That is precisely the case bilinear mipmapping handles worst,
+     * making anisotropy matter more here than anywhere else.
+     *
+     * Note this map is NOT tagged sRGB. It carries surface direction, not colour;
+     * applying a colour transform to it would bend the normals.
+     */
+    texture.anisotropy = gl.capabilities.getMaxAnisotropy();
+    texture.needsUpdate = true;
+    return texture;
+  }, [gl]);
 
   useFrame(({ camera }, delta) => {
     // Track the camera horizontally so the ocean is effectively infinite - its
