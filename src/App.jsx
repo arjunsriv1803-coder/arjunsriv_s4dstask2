@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import CityScene from './components/CityScene';
-import LoadingScreen from './components/LoadingScreen';
+import Intro from './components/Intro';
 import ControlsOverlay from './components/ControlsOverlay';
 import QualityManager from './components/QualityManager';
 import PerfSampler from './components/PerfSampler';
@@ -211,7 +211,10 @@ export default function App() {
       {/* Overlays are siblings of the Canvas, not children: they are ordinary DOM
           positioned on top, so they stay crisp and selectable rather than being
           rendered into the WebGL context. */}
-      <LoadingScreen />
+      {/* Title card, loader and tour prompt. Dismissing it is what starts the
+          session, so the tour choice is made before the user ever touches the
+          camera - rather than the tour ambushing someone already exploring. */}
+      <Intro onStart={(wantsTour) => setTourStep(wantsTour ? 0 : null)} />
       <WaypointNav
         activeId={destination?.waypoint.id ?? null}
         touring={touring}
