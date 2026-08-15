@@ -9,6 +9,7 @@ import {
   WATER_LEVEL,
   computeMeshBounds,
 } from '../lib/city';
+import { FLIGHT_MS, easeInOutCubic } from '../lib/waypoints';
 
 /*
  * Movement speed as a fraction of the city's span, not an absolute number. If the
@@ -47,7 +48,7 @@ const MIN_HEIGHT = WATER_LEVEL + TARGET_SPAN * 0.008;
  */
 const MAX_TARGET_RADIUS = TARGET_SPAN * 0.85;
 
-export default function CameraRig() {
+export default function CameraRig({ destination }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls);
   const scene = useThree((state) => state.scene);
@@ -76,14 +77,14 @@ export default function CameraRig() {
    * Returns false if the model is not in the scene graph yet, so the caller can
    * retry on a later frame.
    */
-  const frameCity = useCallback(() => {
-    if (!controls) return false;
+  const computeFramePose = useCallback(() => {
+    if (!controls) return null;
 
     const city = scene.getObjectByName(CITY_GROUP_NAME);
-    if (!city) return false;
+    if (!city) return null;
 
     const box = computeMeshBounds(city);
-    if (!box) return false;
+    if (!box) return null;
 
     const center = box.getCenter(new Vector3());
     const half = box.getSize(new Vector3()).multiplyScalar(0.5);
@@ -116,19 +117,70 @@ export default function CameraRig() {
     const distance = Math.max(distanceForWidth, distanceForHeight);
 
     cityCenter.current.copy(center);
-    camera.position.copy(center).addScaledVector(direction, distance);
-    controls.target.copy(center);
-    camera.lookAt(center);
-    camera.updateProjectionMatrix();
-    controls.update();
 
-    console.info(
-      '[CameraRig] framed on bbox centre',
-      center.toArray().map((n) => Math.round(n)),
-      `distance ${Math.round(distance)}`,
-    );
-    return true;
+    // Returns the pose rather than applying it, so the same solve can be used
+    // both to snap on load and as the destination of a camera flight.
+    return {
+      position: center.clone().addScaledVector(direction, distance),
+      target: center.clone(),
+    };
   }, [camera, controls, scene]);
+
+  /** Applies a pose immediately, with no interpolation. */
+  const applyPose = useCallback(
+    (pose) => {
+      if (!pose || !controls) return;
+      camera.position.copy(pose.position);
+      controls.target.copy(pose.target);
+      camera.lookAt(pose.target);
+      camera.updateProjectionMatrix();
+      controls.update();
+    },
+    [camera, controls],
+  );
+
+  /*
+   * An in-progress camera flight, or null. Held in a ref because it is written
+   * every frame - as state it would re-render the tree 60 times a second.
+   */
+  const flight = useRef(null);
+
+  const cancelFlight = useCallback(() => {
+    flight.current = null;
+  }, []);
+
+  /** Resolves a waypoint into a concrete camera pose. */
+  const poseForWaypoint = useCallback(
+    (waypoint) => {
+      // The overview is re-solved rather than stored, so it stays correct on any
+      // window aspect ratio instead of being a position captured at one size.
+      if (waypoint.useFraming) return computeFramePose();
+
+      const target = new Vector3(...waypoint.target);
+      const direction = new Vector3(...waypoint.direction).normalize();
+      return {
+        position: target.clone().addScaledVector(direction, waypoint.distance),
+        target,
+      };
+    },
+    [computeFramePose],
+  );
+
+  const startFlight = useCallback(
+    (waypoint) => {
+      const to = poseForWaypoint(waypoint);
+      if (!to || !controls) return;
+
+      flight.current = {
+        fromPosition: camera.position.clone(),
+        fromTarget: controls.target.clone(),
+        toPosition: to.position,
+        toTarget: to.target,
+        startedAt: performance.now(),
+      };
+    },
+    [camera, controls, poseForWaypoint],
+  );
 
   /*
    * Frame on the first frame where both OrbitControls and the model exist. An
@@ -138,18 +190,56 @@ export default function CameraRig() {
   const hasFramed = useRef(false);
   useFrame(() => {
     if (hasFramed.current) return;
-    if (frameCity()) hasFramed.current = true;
+    const pose = computeFramePose();
+    if (!pose) return;
+    applyPose(pose);
+    hasFramed.current = true;
   });
 
-  // Reset is a one-shot action rather than a held state, so it is handled here as
-  // its own listener instead of being polled from the movement Set every frame.
+  // Fly whenever a new destination is requested. `nonce` is what makes clicking
+  // the same waypoint twice re-trigger, since the waypoint object itself is
+  // unchanged and would not fire the effect.
+  useEffect(() => {
+    if (!destination || !controls) return;
+    startFlight(destination.waypoint);
+  }, [destination, controls, startFlight]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
-      if (event.code === 'KeyR') frameCity();
+      // Any manual input cancels an in-progress flight. Fighting the user for
+      // control of the camera is the classic way this feature feels broken.
+      if (flight.current) cancelFlight();
+      if (event.code === 'KeyR') applyPose(computeFramePose());
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [frameCity]);
+  }, [computeFramePose, applyPose, cancelFlight]);
+
+  // A drag or a scroll also cancels. OrbitControls fires 'start' on both.
+  useEffect(() => {
+    if (!controls) return;
+    controls.addEventListener('start', cancelFlight);
+    return () => controls.removeEventListener('start', cancelFlight);
+  }, [controls, cancelFlight]);
+
+  // Advance an active flight.
+  useFrame(() => {
+    const active = flight.current;
+    if (!active || !controls) return;
+
+    const elapsed = performance.now() - active.startedAt;
+    const t = Math.min(1, elapsed / FLIGHT_MS);
+    const eased = easeInOutCubic(t);
+
+    // Interpolating position and target together is what keeps the move legible:
+    // the camera arcs toward the destination while continuously turning to face
+    // it, rather than swinging around a target that has already jumped.
+    camera.position.lerpVectors(active.fromPosition, active.toPosition, eased);
+    controls.target.lerpVectors(active.fromTarget, active.toTarget, eased);
+    controls.update();
+
+    if (t >= 1) flight.current = null;
+  });
 
   useFrame((_state, delta) => {
     const pressed = keys.current;

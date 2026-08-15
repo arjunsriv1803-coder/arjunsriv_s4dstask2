@@ -6,6 +6,7 @@ import ControlsOverlay from './components/ControlsOverlay';
 import QualityManager from './components/QualityManager';
 import PerfSampler from './components/PerfSampler';
 import PerfHUD from './components/PerfHUD';
+import WaypointNav from './components/WaypointNav';
 import { TIERS, detectInitialTier } from './lib/quality';
 
 // Dev-only instrumentation. Vite statically replaces this, so the HUD and its
@@ -29,6 +30,15 @@ export default function App() {
    * misleading, because nothing would actually change.
    */
   const initialAntialias = useRef(settings.antialias);
+
+  /*
+   * The requested fast-travel destination.
+   *
+   * `nonce` is the point of the wrapper object: clicking the same waypoint twice
+   * should fly there again, but the waypoint object itself is unchanged, so the
+   * effect in CameraRig would not re-run without a value that always differs.
+   */
+  const [destination, setDestination] = useState(null);
 
   // Per-frame stats live in a ref so the sampler never triggers a React render.
   const statsRef = useRef({
@@ -106,7 +116,7 @@ export default function App() {
             The fallback is null because the loading UI is DOM, not 3D - it has to
             be visible precisely when the canvas has nothing to show. */}
         <Suspense fallback={null}>
-          <CityScene settings={settings} />
+          <CityScene settings={settings} destination={destination} />
         </Suspense>
       </Canvas>
 
@@ -114,6 +124,10 @@ export default function App() {
           positioned on top, so they stay crisp and selectable rather than being
           rendered into the WebGL context. */}
       <LoadingScreen />
+      <WaypointNav
+        activeId={destination?.waypoint.id ?? null}
+        onSelect={(waypoint) => setDestination({ waypoint, nonce: performance.now() })}
+      />
       <ControlsOverlay />
       {SHOW_PERF && <PerfHUD statsRef={statsRef} tier={tier} />}
     </div>

@@ -33,7 +33,7 @@ const SKY_RADIUS = TARGET_SPAN * 2.2;
  * plane (2600), or the water would visibly stop somewhere in view - which is why
  * even the low tier's fog reaches 1700 rather than the PRD's suggested 1200.
  */
-export default function CityScene({ settings }) {
+export default function CityScene({ settings, destination }) {
   return (
     <>
       <GradientSky
@@ -112,7 +112,7 @@ export default function CityScene({ settings }) {
       <Water level={WATER_LEVEL} />
 
       <CityModel />
-      <CameraRig />
+      <CameraRig destination={destination} />
 
       {/* Inside Suspense, so its first frame is the first genuinely interactive
           one. Logs load timings to the console and window.__cityMetrics. */}
