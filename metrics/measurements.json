@@ -1,170 +1,111 @@
 {
-  "_about": "Raw measured data for the optimization writeup. Every value here was measured, not estimated. Fields prefixed with _ are notes, not data. Do not quote a number from this file without its accompanying caveat.",
-  "_generated": "2026-08-15",
+  "_about": "Raw measured data for the optimization writeup. Every value was measured, not estimated. Fields prefixed with _ are notes, not data. Do not quote a number from this file without its accompanying caveat.",
+  "_generated": "2026-08-16",
+  "_liveUrl": "https://arjun-manhattan-3d.netlify.app",
+
+  "shipped": {
+    "_note": "Two builds of identical geometry, differing only in atlas resolution. Which one loads is decided once, before the first frame, from device signals.",
+    "high_and_medium_tier": {
+      "file": "manhattan_4k.glb",
+      "bytes": 11045848,
+      "mb": 11.05,
+      "atlas": "4096x4096 WebP",
+      "gpu_texture_mb": 89.48
+    },
+    "low_tier": {
+      "file": "manhattan_optimized.glb",
+      "bytes": 8417824,
+      "mb": 8.42,
+      "atlas": "2048x2048 WebP",
+      "gpu_texture_mb": 22.37
+    },
+    "triangles": 318648,
+    "_triangle_note": "318,648 triangles in the file. 482 of them are degenerate (zero area), so a normal-based count reports 318,166. Both figures are correct; they answer different questions.",
+    "repo_total_mb": 19.46,
+    "budget_mb": 25
+  },
 
   "asset_pipeline": {
-    "_method": "File sizes via stat. Triangle counts, texture size and GPU memory via @gltf-transform/core reading each stage. GPU memory = sum of accessor byte lengths + (texture width * height * 4 * 4/3) for the mip chain. gzip via node:zlib level 6.",
-    "_gpu_note": "GPU memory is independent of file size. Encoded textures (JPEG/WebP) are decoded to raw RGBA on upload, so a small file can still cost a lot of VRAM.",
+    "_method": "File sizes via stat. Triangles, texture size and GPU memory via @gltf-transform/core reading each stage. GPU memory = sum of accessor byte lengths + (width * height * 4 * 4/3) for the mip chain. gzip via node:zlib level 6.",
+    "_gpu_note": "GPU memory is independent of file size. Encoded textures are decoded to raw RGBA on upload, so a small file can still cost a lot of VRAM.",
     "stages": [
-      {
-        "stage": "source",
-        "command": "(unmodified manhattan_heavy.glb)",
-        "bytes": 519434492,
-        "mb": 519.43,
-        "gzip_mb": 25.32,
-        "triangles": 336574,
-        "texture": "4096x4096",
-        "texture_mb": 14.27,
-        "gpu_mb": 122.77
-      },
-      {
-        "stage": "1 dedup",
-        "command": "gltf-transform dedup",
-        "bytes": 47574108,
-        "mb": 47.57,
-        "gzip_mb": 26.37,
-        "triangles": 336574,
-        "texture": "4096x4096",
-        "texture_mb": 14.27,
-        "gpu_mb": 122.77
-      },
-      {
-        "stage": "2 prune",
-        "command": "gltf-transform prune",
-        "bytes": 47574108,
-        "mb": 47.57,
-        "gzip_mb": 26.37,
-        "triangles": 336574,
-        "texture": "4096x4096",
-        "texture_mb": 14.27,
-        "gpu_mb": 122.77,
-        "_note": "No change. dedup had already removed everything unreferenced."
-      },
-      {
-        "stage": "3 weld",
-        "command": "gltf-transform weld",
-        "bytes": 45548200,
-        "mb": 45.55,
-        "gzip_mb": 25.34,
-        "triangles": 336574,
-        "texture": "4096x4096",
-        "texture_mb": 14.27,
-        "gpu_mb": 120.74
-      },
-      {
-        "stage": "4 resize + webp",
-        "command": "sharp: 4096 -> 2048, WebP q80, single encode",
-        "bytes": 32431236,
-        "mb": 32.43,
-        "gzip_mb": 12.23,
-        "triangles": 336574,
-        "texture": "2048x2048",
-        "texture_mb": 1.16,
-        "gpu_mb": 53.63
-      },
-      {
-        "stage": "5 simplify",
-        "command": "gltf-transform simplify --ratio 0.5 --error 0.01",
-        "triangles": 318648,
-        "texture": "2048x2048",
-        "texture_mb": 1.16,
-        "_note": "Requested ratio 0.5 but delivered only -5.3%. The 1% error bound stopped it: hard architectural surfaces have little redundant geometry to give up. The bound protected building silhouettes, which is the correct outcome."
-      },
-      {
-        "stage": "6 meshopt",
-        "command": "gltf-transform meshopt",
-        "bytes": 8417824,
-        "mb": 8.42,
-        "gzip_mb": 6.24,
-        "triangles": 318648,
-        "texture": "2048x2048",
-        "texture_mb": 1.16,
-        "gpu_mb": 35.71,
-        "_note": "Shipped asset."
-      }
+      { "stage": "source", "command": "(unmodified manhattan_heavy.glb)", "bytes": 519434492, "mb": 519.43, "gzip_mb": 25.32, "triangles": 336574, "texture": "4096x4096 JPEG", "texture_mb": 14.27, "gpu_mb": 122.77 },
+      { "stage": "1 dedup", "command": "gltf-transform dedup", "bytes": 47574108, "mb": 47.57, "gzip_mb": 26.37, "triangles": 336574, "texture": "4096x4096", "texture_mb": 14.27, "gpu_mb": 122.77 },
+      { "stage": "2 prune", "command": "gltf-transform prune", "bytes": 47574108, "mb": 47.57, "gzip_mb": 26.37, "triangles": 336574, "texture": "4096x4096", "texture_mb": 14.27, "gpu_mb": 122.77, "_note": "No change. dedup had already removed everything unreferenced." },
+      { "stage": "3 weld", "command": "gltf-transform weld", "bytes": 45548200, "mb": 45.55, "gzip_mb": 25.34, "triangles": 336574, "texture": "4096x4096", "texture_mb": 14.27, "gpu_mb": 120.74 },
+      { "stage": "4 simplify", "command": "gltf-transform simplify --ratio 0.5 --error 0.01", "triangles": 318648, "_note": "Requested ratio 0.5, delivered only -5.3%. The 1% error bound stopped it: hard architectural surfaces have little redundant geometry to give up. The bound protected building silhouettes, which is the correct outcome." },
+      { "stage": "5 texture", "command": "sharp: 4096 WebP q80, single encode", "texture": "4096x4096 WebP", "texture_mb": 3.79, "_note": "Encoded straight from the original atlas rather than through a resized intermediate, avoiding a generation of compression loss." },
+      { "stage": "6 meshopt", "command": "gltf-transform meshopt", "bytes": 11045848, "mb": 11.05, "triangles": 318648, "gpu_mb": 89.48, "_note": "Shipped asset for high and medium tiers." }
     ],
     "totals": {
-      "size_reduction_percent": 98.38,
-      "gzip_reduction_percent": 75.36,
-      "gpu_memory_mb": { "before": 122.77, "after": 35.71, "reduction_percent": 70.91 },
-      "texture_memory_mb": { "before": 89.48, "after": 22.37, "reduction_percent": 75.0 },
+      "size_reduction_percent": 97.87,
+      "size_before_mb": 519.43,
+      "size_after_mb": 11.05,
       "triangles": { "before": 336574, "after": 318648, "reduction_percent": 5.33 }
     },
-    "_gzip_caveat": "IMPORTANT FRAMING. The source gzips to 25.32 MB because the ~472 MB of duplicate buffer data compresses away almost entirely. The honest over-the-wire comparison is therefore 25.32 MB vs 6.24 MB (-75.4%), NOT 519 vs 8.42. A '98% smaller' claim partly measures redundancy that any HTTP compression would have caught on its own.",
-    "_gzip_anomaly": "Stage 1 gzips LARGER than the source (26.37 vs 25.32 MB). dedup removed redundancy that gzip was already exploiting, so the bytes that remain are denser. Real effect, not a measurement error."
+    "_gzip_caveat": "IMPORTANT FRAMING. The source gzips to 25.32 MB, because the ~472 MB of duplicate buffer data compresses away almost entirely. A '98% smaller' headline therefore partly measures redundancy that HTTP compression alone would have caught. The durable wins are the ones gzip could NOT deliver: GPU memory and triangle count.",
+    "_gzip_anomaly": "Stage 1 gzips LARGER than the source (26.37 vs 25.32 MB). dedup removed redundancy gzip was already exploiting, so the remaining bytes are denser. Real effect, not a measurement error."
   },
 
   "codec_comparison": {
-    "_method": "Both built from the same stage-6 input and measured with stat.",
-    "meshopt": { "bytes": 8417824, "mb": 8.42, "shipped": true },
-    "draco": { "bytes": 2892784, "mb": 2.89, "shipped": false },
-    "_decision": "Draco is 65.6% smaller, far more than the 'marginally smaller' the PRD anticipated. Meshopt was still chosen: the 5.5 MB difference is under a second of extra download, while Draco's decode runs on the main thread and risks stalling the first frame on weak hardware. Measuring the alternative and rejecting it for a stated reason is part of the result."
+    "_method": "Built from the same input and measured with stat.",
+    "meshopt": { "mb": 8.42, "shipped": true, "_note": "measured on the 2048 build, where the geometry cost is isolated from the atlas" },
+    "draco": { "mb": 2.89, "shipped": false },
+    "_decision": "Draco is 65.6% smaller, far more than the PRD anticipated. Meshopt was still chosen: the difference is under a second of extra download, while Draco's decode runs on the main thread and risks stalling the first frame on weak hardware. Measuring the alternative and rejecting it for a stated reason is part of the result."
   },
 
-  "parse_cost": {
-    "_method": "Node, bytes preloaded into memory so only the parse is timed. Relative decode comparison, NOT a prediction of browser timings.",
-    "source_ms": 918,
-    "optimized_ms": 255,
-    "_note": "Optimized figure includes meshopt WASM decode."
-  },
-
-  "load_timings": {
-    "_method": "Browser Performance API via window.__cityMetrics, DevTools cache disabled. Measured against the VITE DEV SERVER.",
-    "_caveat": "Dev-server numbers. documentLoadMs and domContentLoadedMs are badly inflated by Vite serving hundreds of unbundled ES modules, which production does not do. Re-measure on `npm run preview` before publishing these two fields. timeToInteractiveMs and the model request are more representative.",
-    "_compression_caveat": "transferredMb equals decodedMb in both runs because the Vite dev server does not compress. Netlify gzips, so the real transfer is ~6.24 MB, about 26% less than measured here.",
-    "unthrottled": {
-      "time_to_interactive_ms": 2319,
-      "document_load_ms": 2613,
-      "dom_content_loaded_ms": 1173,
-      "model_request_ms": 1554,
-      "model_transferred_mb": 8.42,
-      "model_decoded_mb": 8.42,
-      "served_from_cache": false
-    },
-    "fast_4g": {
-      "time_to_interactive_ms": 9811,
-      "document_load_ms": 26569,
-      "dom_content_loaded_ms": 25129,
-      "model_request_ms": 9492,
-      "model_transferred_mb": 8.42,
-      "served_from_cache": false
-    }
-  },
-
-  "runtime": {
-    "_method": "Custom PerfHUD reading WebGLRenderer.info. Draw calls and triangles are the renderer's own per-frame counts, not estimates. Sampled while orbiting.",
-    "optimized": {
-      "fps_range": [141, 146],
-      "one_percent_low_range": [56, 119],
-      "draw_calls": 17,
-      "triangles_submitted": 319610
-    },
-    "unoptimized_baseline": {
-      "fps": 117,
-      "one_percent_low": 51,
-      "draw_calls": 17,
-      "triangles_submitted": 337536,
-      "textures": 6,
-      "load_seconds_local_ssd": "4-5"
-    },
-    "_triangle_discrepancy": "HUD reports 319,610 vs 318,648 in the file. The extra ~962 is the ocean plane, sky dome and the model's LINES primitive. The HUD counts what is submitted per frame; the file count is city geometry only. Both correct, different questions.",
-    "_honesty_note": "CRITICAL FRAMING - DO NOT OVERCLAIM. The unoptimized model loaded in 4-5s and still held 117 FPS, because it was served from a local SSD with no network involved. The optimization did NOT rescue a broken frame rate; the frame rate was never broken on this hardware. Frame rate improved 117 -> ~143 FPS, which is real but secondary. The genuine wins are DELIVERY (519 MB is ~7 minutes at 10 Mbps and effectively undeliverable on mobile) and GPU MEMORY (122.77 -> 35.71 MB), which is what protects weaker hardware than this test machine."
+  "ktx2_investigation": {
+    "_question": "Could KTX2/UASTC deliver a 4096 atlas in less GPU memory than an uncompressed 2048?",
+    "_outcome": "Partly. 4096 KTX2 was unreachable and the trade proved bad, so plain 4096 WebP ships instead.",
+    "_blocker": "KTX-Software is not installed and not available via winget. The WASM encoder used instead (ktx2-encoder) enforces a 12,582,912 source-texel ceiling; a single 4096x4096 image is 16,777,216 texels and exceeds it alone. 3072 was the maximum it would encode.",
+    "options_measured": [
+      { "option": "2048 WebP", "file_mb": 8.42, "gpu_mb": 22.4, "texels_per_world_unit": 0.733, "px_per_texel_at_40u": 35.4 },
+      { "option": "3072 KTX2 UASTC", "file_mb": 19.44, "gpu_mb": 12.6, "texels_per_world_unit": 1.1, "px_per_texel_at_40u": 23.6 },
+      { "option": "4096 WebP", "file_mb": 11.05, "gpu_mb": 89.5, "texels_per_world_unit": 1.466, "px_per_texel_at_40u": 17.7, "shipped": true }
+    ],
+    "_decision": "KTX2 wins decisively on GPU memory, but UASTC is high-entropy so Zstd barely compresses it and the file more than doubles. Paying 19.44 MB for LESS texel density than 4096 WebP at 11.05 MB is the wrong trade when quality is the goal and the budget is 25 MB."
   },
 
   "texel_density": {
-    "_method": "Per-triangle world area vs UV area gives linear texel density; converted to screen pixels per texel at a given camera distance. Above 1.0 the texture is magnified and reads soft.",
-    "_decision": "1024 was rejected: even the default wide shot sat at 4.72 px/texel and rendered crops showed facades turning to mush. 4096 was rejected: 11.05 MB and 89.48 MB GPU, handing back the entire texture-memory win for detail a single city-wide atlas cannot resolve at any resolution.",
+    "_method": "Per-triangle world area vs UV area gives linear texel density, converted to screen pixels per texel at a given camera distance. Above 1.0 the texture is magnified and reads soft.",
     "atlas_uv_coverage_percent": 59.4,
-    "options": [
-      { "atlas": 1024, "texels_per_world_unit": 0.367, "px_per_texel": { "600u": 4.72, "150u": 18.87, "40u": 70.75 }, "final_glb_mb": 7.6, "gpu_mb": 5.59 },
-      { "atlas": 2048, "texels_per_world_unit": 0.733, "px_per_texel": { "600u": 2.36, "150u": 9.43, "40u": 35.37 }, "final_glb_mb": 8.42, "gpu_mb": 22.37, "shipped": true },
-      { "atlas": 4096, "texels_per_world_unit": 1.466, "px_per_texel": { "600u": 1.18, "150u": 4.72, "40u": 17.69 }, "final_glb_mb": 11.05, "gpu_mb": 89.48 }
-    ]
+    "_finding": "This is a single shared atlas across an entire city, so it is magnified at every distance. Even the original 4096 source is ~18x magnified at street level. Close-range softness is a property of the source asset, not of the optimization - measured at every resolution before 4096 was chosen."
+  },
+
+  "deployed_load": {
+    "_method": "Performance API on the live Netlify site, cold cache. These supersede the earlier dev-server figures, which were inflated by Vite serving hundreds of unbundled modules.",
+    "url": "https://arjun-manhattan-3d.netlify.app",
+    "dom_content_loaded_ms": 3247,
+    "load_event_ms": 3248,
+    "total_transferred_mb": 11.53,
+    "model": { "transferred_mb": 11.046, "decoded_mb": 11.046, "duration_ms": 3123 },
+    "js_bundle": { "transferred_mb": 0.482, "decoded_mb": 1.555, "encoding": "br", "compression_ratio": 0.31 },
+    "css": { "transferred_mb": 0.002, "decoded_mb": 0.006, "compression_ratio": 0.329 },
+    "cache_control_verified": "public, max-age=31536000, immutable on /models/* and /assets/*"
+  },
+
+  "compression_finding": {
+    "_observation": "Netlify does NOT compress the GLB. Confirmed twice: browser resource timing shows transferSize == decodedBodySize (ratio 1.0), and curl with an explicit Accept-Encoding: br, gzip returns no Content-Encoding. The JS bundle on the same origin IS brotli-encoded, so this is content-type specific - Netlify skips application/octet-stream.",
+    "potential_saving": { "brotli_mb": 8.82, "brotli_percent": 20.2, "gzip_mb": 8.87, "gzip_percent": 19.7 },
+    "_decision": "Not pursued. Forcing it on Netlify means storing brotli-compressed bytes under the .glb filename and declaring Content-Encoding: br - which corrupts the download for any client that does not send Accept-Encoding: br, and makes the committed file unopenable as a GLB. 2.2 MB on an asset already reduced 98%, against a 25 MB budget, does not justify a correctness cliff."
+  },
+
+  "runtime": {
+    "_method": "Custom PerfHUD reading WebGLRenderer.info. Draw calls and triangles are the renderer's own per-frame counts. Dev builds only - the HUD is stripped from production.",
+    "_status": "STALE - needs re-measuring. These were taken on the dev server against the 2048 atlas, BEFORE the 4K switch, the lighting rebalance, post-processing, and the tier-oscillation fix. Do not publish them.",
+    "draw_calls": 17,
+    "_draw_calls_note": "17 for an entire city: 14 building meshes, water, sky dome, and the model's LINES primitive. This figure is structural and unaffected by the later changes.",
+    "unoptimized_baseline": {
+      "fps": 117,
+      "load_seconds_local_ssd": "4-5",
+      "_honesty_note": "CRITICAL FRAMING - DO NOT OVERCLAIM. The unoptimized model still held 117 FPS and loaded in 4-5s, because it came off a local SSD with no network. The optimization did not rescue a broken frame rate; it was never broken on this hardware. The real wins are DELIVERY (519 MB is ~7 minutes at 10 Mbps and effectively undeliverable on mobile) and GPU MEMORY, which protects hardware weaker than the test machine."
+    }
   },
 
   "outstanding": [
-    "Lighthouse Performance score on the production build (npm run preview) - not yet measured.",
-    "Re-measure load timings on the production build to replace the dev-server document/DCL figures.",
-    "Cold-cache load from the deployed Netlify URL."
+    "Sustained FPS and 1% low on the DEPLOYED build, at overview / mid-zoom / street level.",
+    "Lighthouse Performance score, desktop preset, against the live URL.",
+    "Cross-browser check: Firefox and Edge (success criterion 5).",
+    "Mobile: loads without crashing (success criterion 6)."
   ]
 }
