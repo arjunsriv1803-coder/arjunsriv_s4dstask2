@@ -1,6 +1,12 @@
 import { useState } from 'react';
 
-const CONTROLS = [
+/*
+ * Two legends, because the two input methods share almost nothing.
+ *
+ * Listing "W A S D" on a phone is worse than listing nothing: it advertises
+ * controls the device cannot produce, and buries the gestures that do work.
+ */
+const POINTER_CONTROLS = [
   ['Drag', 'Orbit'],
   ['Scroll', 'Zoom'],
   ['W A S D', 'Move'],
@@ -9,15 +15,22 @@ const CONTROLS = [
   ['R', 'Reset view'],
 ];
 
+const TOUCH_CONTROLS = [
+  ['Drag', 'Orbit'],
+  ['Pinch', 'Zoom'],
+  ['Two fingers', 'Pan'],
+];
+
 /**
- * Persistent control legend.
+ * Control legend.
  *
- * A 3D scene with hidden keyboard controls is a scene most people will only ever
- * drag. Collapsible because it is reference material, not something to read twice
- * - and because it would otherwise sit on top of the city in every screenshot.
+ * Collapsed by default on small screens: on a phone this panel and the Locations
+ * list together covered around half the viewport, which is a poor trade for
+ * reference material you read once.
  */
-export default function ControlsOverlay() {
-  const [open, setOpen] = useState(true);
+export default function ControlsOverlay({ touch, compact }) {
+  const [open, setOpen] = useState(!compact);
+  const controls = touch ? TOUCH_CONTROLS : POINTER_CONTROLS;
 
   return (
     <div className={`controls${open ? '' : ' controls--closed'}`}>
@@ -35,7 +48,7 @@ export default function ControlsOverlay() {
 
       {open && (
         <dl className="controls__list">
-          {CONTROLS.map(([key, action]) => (
+          {controls.map(([key, action]) => (
             <div className="controls__row" key={key}>
               <dt>
                 <kbd>{key}</kbd>

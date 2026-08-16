@@ -288,14 +288,36 @@ kbd {
   color: #eaf1f8;
 }
 
+.waypoints__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
 .waypoints__heading {
-  margin: 0 0 0.45rem;
+  margin: 0;
   padding: 0 0.15rem;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   opacity: 0.62;
+}
+
+.waypoints__collapse {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .waypoints__tour {
@@ -420,29 +442,71 @@ kbd {
   border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-@media (max-width: 560px) {
-  .controls {
-    right: 0.6rem;
-    bottom: 0.6rem;
-    font-size: 0.72rem;
-  }
-
-  .perf {
-    font-size: 0.66rem;
-    min-width: 150px;
-  }
-
-  /* The dev HUD sits top-left, so on a narrow screen the waypoint panel drops
-     below it rather than overlapping. */
+/*
+ * Small screens.
+ *
+ * On a phone the two panels previously covered roughly half the viewport, hiding
+ * the city itself. Both now collapse by default (see the components), so what is
+ * left is a compact header plus the tour button - the one control that matters
+ * when you cannot use a keyboard.
+ *
+ * Tap targets stay at least ~40px; the desktop sizes are comfortable with a
+ * mouse and fiddly with a thumb.
+ */
+@media (max-width: 640px) {
   .waypoints {
-    top: auto;
-    bottom: 0.6rem;
-    right: 0.6rem;
-    width: 148px;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    min-width: 168px;
+    max-width: min(58vw, 230px);
+    padding: 0.45rem;
+  }
+
+  .waypoints__tour {
+    padding: 0.55rem 0.6rem;
+    font-size: 0.82rem;
+  }
+
+  .waypoints__item {
+    padding: 0.5rem 0.45rem;
+  }
+
+  .waypoints__label {
+    font-size: 0.82rem;
   }
 
   .controls {
-    left: 0.6rem;
+    left: 0.5rem;
     right: auto;
+    bottom: 0.5rem;
+    min-width: 0;
+    font-size: 0.76rem;
+  }
+
+  .controls__toggle {
+    padding: 0.3rem 0.25rem;
+  }
+
+  /* Dev-only HUD; keep it out of the way of the collapsed panels. */
+  .perf {
+    top: 0.5rem;
+    left: 0.5rem;
+    font-size: 0.62rem;
+    min-width: 132px;
+  }
+
+  .intro__panel {
+    width: min(520px, 92vw);
+  }
+
+  .intro__choices {
+    flex-direction: column;
+  }
+
+  .intro__choice {
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.7rem 0.9rem;
   }
 }

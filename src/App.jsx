@@ -10,6 +10,7 @@ import WaypointNav from './components/WaypointNav';
 import { TIERS, detectInitialTier } from './lib/quality';
 import { WAYPOINTS } from './lib/waypoints';
 import { TOUR, TOUR_FLIGHT_MS } from './lib/tour';
+import useViewport from './hooks/useViewport';
 
 // Dev-only instrumentation. Vite statically replaces this, so the HUD and its
 // sampler are dropped from the production bundle entirely rather than shipped
@@ -71,6 +72,9 @@ export default function App() {
    */
   const [tourStep, setTourStep] = useState(null);
   const touring = tourStep !== null;
+
+  // Panel layout follows viewport size; the control legend follows input method.
+  const { compact, touch } = useViewport();
 
   // Fly to the current leg, then schedule the next.
   useEffect(() => {
@@ -218,6 +222,7 @@ export default function App() {
       <WaypointNav
         activeId={destination?.waypoint.id ?? null}
         touring={touring}
+        compact={compact}
         onToggleTour={() => setTourStep((step) => (step === null ? 0 : null))}
         onSelect={(waypoint) => {
           // A manual pick takes over from the tour rather than fighting it.
@@ -225,7 +230,7 @@ export default function App() {
           setDestination({ waypoint, nonce: performance.now() });
         }}
       />
-      <ControlsOverlay />
+      <ControlsOverlay touch={touch} compact={compact} />
       {SHOW_PERF && <PerfHUD statsRef={statsRef} tier={tier} postProcessing={postProcessing} />}
     </div>
   );

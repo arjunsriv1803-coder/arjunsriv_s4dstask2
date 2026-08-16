@@ -33,6 +33,26 @@ const FRAME_FILL_HEIGHT = 0.78;
 const VIEW_DIRECTION = [1, 0.62, 1];
 
 /*
+ * Portrait needs a different approach entirely, not just a tweak.
+ *
+ * The island is ~1000 units on its long axis and ~676 on its short one. Fitting
+ * the long axis across a narrow phone screen at the desktop 55 deg FOV demands a
+ * camera distance of ~2853 units - past OrbitControls' maxDistance of 1600, so it
+ * was being silently clamped and the resulting shot was arbitrary rather than
+ * chosen. It also exceeded the far plane, so the far half of the city would clip.
+ *
+ * Two changes together bring it to ~1462, comfortably inside both limits:
+ * swing the view so the island's SHORT axis lies across the screen and its long
+ * axis runs down it, matching the screen's own shape, and widen the FOV.
+ */
+const VIEW_DIRECTION_PORTRAIT = [0.15, 0.62, 1];
+const FOV_LANDSCAPE = 55;
+const FOV_PORTRAIT = 70;
+
+const MIN_DISTANCE = TARGET_SPAN * 0.075;
+const MAX_DISTANCE = TARGET_SPAN * 1.6;
+
+/*
  * Floor for both the camera and the orbit target, set just above the water. The
  * model is a cut-out tile with a hollow underside, so dropping below the surface
  * reveals the hole. maxPolarAngle stops orbiting under it; this stops FLYING
@@ -52,6 +72,7 @@ export default function CameraRig({ destination, touring }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls);
   const scene = useThree((state) => state.scene);
+  const size = useThree((state) => state.size);
   const keys = useFlyControls();
 
   // Where the city actually is, captured when it is first framed. The roaming
@@ -77,8 +98,23 @@ export default function CameraRig({ destination, touring }) {
    * Returns false if the model is not in the scene graph yet, so the caller can
    * retry on a later frame.
    */
-  const computeFramePose = useCallback((viewDirection = VIEW_DIRECTION, fill = 1) => {
+  const computeFramePose = useCallback((viewDirectionOverride = null, fill = 1) => {
     if (!controls) return null;
+
+    /*
+     * FOV is set here rather than on the Canvas because it has to respond to
+     * orientation. Solving the framing against a stale FOV would give a distance
+     * for a projection that is no longer in use.
+     */
+    const portrait = camera.aspect < 1;
+    const targetFov = portrait ? FOV_PORTRAIT : FOV_LANDSCAPE;
+    if (camera.fov !== targetFov) {
+      camera.fov = targetFov;
+      camera.updateProjectionMatrix();
+    }
+
+    const viewDirection =
+      viewDirectionOverride ?? (portrait ? VIEW_DIRECTION_PORTRAIT : VIEW_DIRECTION);
 
     const city = scene.getObjectByName(CITY_GROUP_NAME);
     if (!city) return null;
@@ -116,9 +152,14 @@ export default function CameraRig({ destination, touring }) {
       extentAlong(right) / (FRAME_FILL_WIDTH * tanHalfFov * camera.aspect);
     const distanceForHeight = extentAlong(up) / (FRAME_FILL_HEIGHT * tanHalfFov);
 
-    // Take whichever is further, so both constraints are satisfied.
-    // `fill` < 1 moves closer, > 1 pulls back, without losing the centring.
-    const distance = Math.max(distanceForWidth, distanceForHeight) * fill;
+    /*
+     * Take whichever is further, so both constraints are satisfied, then clamp to
+     * the same bounds OrbitControls enforces. Without the clamp an unreachable
+     * distance is silently corrected afterwards, and the shot that results was
+     * never the one that was solved for.
+     */
+    const solved = Math.max(distanceForWidth, distanceForHeight) * fill;
+    const distance = Math.min(MAX_DISTANCE, Math.max(MIN_DISTANCE, solved));
 
     cityCenter.current.copy(center);
 
@@ -197,13 +238,35 @@ export default function CameraRig({ destination, touring }) {
    * not be in the scene graph when effects first run.
    */
   const hasFramed = useRef(false);
+  const wasPortrait = useRef(null);
+
   useFrame(() => {
     if (hasFramed.current) return;
     const pose = computeFramePose();
     if (!pose) return;
     applyPose(pose);
     hasFramed.current = true;
+    wasPortrait.current = size.height > size.width;
   });
+
+  /*
+   * Re-frame when the device is rotated.
+   *
+   * Portrait and landscape use different view directions and fields of view, so a
+   * shot framed for one is simply wrong in the other - on a phone the city ends
+   * up small and pushed to one side. Only an actual orientation FLIP triggers
+   * this, not every resize, so dragging a desktop window never yanks the camera
+   * out of the user's hands.
+   */
+  useEffect(() => {
+    const portrait = size.height > size.width;
+    if (wasPortrait.current === null || wasPortrait.current === portrait) {
+      wasPortrait.current = portrait;
+      return;
+    }
+    wasPortrait.current = portrait;
+    if (hasFramed.current) applyPose(computeFramePose());
+  }, [size.width, size.height, computeFramePose, applyPose]);
 
   // Fly whenever a new destination is requested. `nonce` is what makes clicking
   // the same waypoint twice re-trigger, since the waypoint object itself is
@@ -351,8 +414,8 @@ export default function CameraRig({ destination, touring }) {
        * camera further from its target makes that much harder to stumble into.
        * The upper bound keeps it inside the sky dome and the far plane.
        */
-      minDistance={TARGET_SPAN * 0.075}
-      maxDistance={TARGET_SPAN * 1.6}
+      minDistance={MIN_DISTANCE}
+      maxDistance={MAX_DISTANCE}
     />
   );
 }
