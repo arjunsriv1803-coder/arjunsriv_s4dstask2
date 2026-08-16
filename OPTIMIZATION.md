@@ -289,11 +289,14 @@ true.
 
 ---
 
-## 10. Pending measurements
+## 10. What was not measured
 
-Listed rather than estimated:
+Listed rather than estimated, because an invented figure is worth less than an
+acknowledged gap:
 
-- Sustained FPS and 1% low on the deployed build (overview / mid-zoom / street)
-- Lighthouse Performance score, desktop preset
-- Firefox and Edge verification
-- Mobile load
+- **Sustained FPS and 1% low on the deployed build.** Draw calls (17) are the
+  renderer's own count and are reported above; frame rate over time is not.
+- **Lighthouse Performance score.** Not run.
+- **Firefox and Edge.** Verified in Chrome and on a physical Android device only.
+
+Everything else in this document was measured directly.

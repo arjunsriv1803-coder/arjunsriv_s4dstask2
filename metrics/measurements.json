@@ -102,10 +102,20 @@
     }
   },
 
-  "outstanding": [
-    "Sustained FPS and 1% low on the DEPLOYED build, at overview / mid-zoom / street level.",
-    "Lighthouse Performance score, desktop preset, against the live URL.",
-    "Cross-browser check: Firefox and Edge (success criterion 5).",
-    "Mobile: loads without crashing (success criterion 6)."
-  ]
+  "not_measured": {
+    "_note": "Recorded as gaps rather than filled with estimates. Every other figure in this file was measured directly.",
+    "items": [
+      "Sustained FPS and 1% low on the deployed build. Draw calls are the renderer's own count and are recorded; frame rate over time is not.",
+      "Lighthouse Performance score.",
+      "Firefox and Edge verification (success criterion 5). Chrome and physical Android only."
+    ]
+  },
+
+  "verified_mobile": {
+    "_method": "Physical Android device on the live site, plus a 375x812 emulated viewport against the deployed build.",
+    "loads_without_crashing": true,
+    "model_served": "manhattan_optimized.glb (8.42 MB, 2048 atlas)",
+    "_note": "The tier system detected a touch-primary device before the first frame and served the lighter build - 2.6 MB less to download and 67 MB less GPU texture memory than the desktop path, with no runtime model swap.",
+    "panel_screen_coverage_percent": 6.7
+  }
 }
