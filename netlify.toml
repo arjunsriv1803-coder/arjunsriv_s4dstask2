@@ -1,0 +1,33 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Pinned rather than left to Netlify's default. Vite 8 and React 19 both need a
+  # modern Node, and an older default would fail the build with an error that
+  # looks like a code problem rather than an environment one.
+  NODE_VERSION = "22"
+
+# The models are content-addressed by name and never edited in place - a new
+# build produces a new file rather than changing an existing one. So they can be
+# cached indefinitely: the first visit pays the 11 MB download, every subsequent
+# visit is instant. This is the single most effective header on the whole site.
+[[headers]]
+  for = "/models/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Vite fingerprints JS and CSS filenames with a content hash, so the same
+# reasoning applies - a changed file always has a changed name.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The HTML entry point must NOT be cached that way. It is the file that points at
+# the hashed asset names, so caching it would pin visitors to an old build
+# forever.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
